@@ -366,3 +366,21 @@ button {
 }
 
 [hidden] { display: none !important; }
+/* Logo (image fournie, encadrée dans un badge clair pour s'intégrer au thème sombre) */
+.logo-entete {
+  height: 40px;
+  width: auto;
+  border-radius: 8px;
+  background: #fff;
+  padding: 3px;
+  display: block;
+}
+.logo-auth {
+  width: 140px;
+  height: auto;
+  display: block;
+  margin: 0 auto 20px;
+  border-radius: 16px;
+  background: #fff;
+  padding: 10px;
+}
