@@ -382,16 +382,22 @@ button {
 
 [hidden] { display: none !important; }
 
-/* Logo (fourni via lien direct postimg.cc) */
+/* Logo (fourni via lien direct postimg.cc) — recadré pour masquer l'espace
+   vide présent dans le fichier source, autour du dessin */
 .logo-entete {
+  width: 40px;
   height: 40px;
-  width: auto;
-  border-radius: 6px;
+  object-fit: cover;
+  object-position: 15% center;
+  border-radius: 8px;
   display: block;
 }
 .logo-auth {
-  width: 150px;
-  height: auto;
+  width: 130px;
+  height: 130px;
+  object-fit: cover;
+  object-position: 15% center;
+  border-radius: 14px;
   display: block;
   margin: 0 auto 16px;
-   }
+}
