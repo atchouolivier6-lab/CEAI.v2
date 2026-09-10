@@ -1,17 +1,12 @@
 /* =========================================================
    CEAI — Tokens de design
+   Le thème (sombre/clair) ne s'applique qu'à l'application
+   connectée (.app-shell). L'écran de connexion reste toujours
+   clair, volontairement, quel que soit le thème choisi.
    ========================================================= */
 :root {
-  --vert-fonce: #12261C;
-  --vert-carte: #1A3327;
-  --vert-carte-claire: #21402F;
   --or: #D4A24C;
   --or-clair: #E8C97D;
-  --or-texte: #F0D28E;
-  --creme: #F1EDE2;
-  --gris-sauge: #9C9A8C;
-  --bordure: rgba(241, 237, 226, 0.12);
-  --bordure-or: rgba(212, 162, 76, 0.35);
   --danger: #E2837A;
 
   --police-titre: "Fraunces", Georgia, serif;
@@ -19,6 +14,28 @@
 
   --rayon: 12px;
   --rayon-petit: 8px;
+
+  /* Thème sombre (par défaut) */
+  --fond: #12261C;
+  --fond-carte: #1A3327;
+  --fond-carte-claire: #21402F;
+  --texte: #F1EDE2;
+  --texte-secondaire: #9C9A8C;
+  --bordure: rgba(241, 237, 226, 0.12);
+  --bordure-or: rgba(212, 162, 76, 0.35);
+  --or-texte: #F0D28E;
+}
+
+html[data-theme="clair"] {
+  --fond: #F7F5EE;
+  --fond-carte: #FFFFFF;
+  --fond-carte-claire: #EFEBDC;
+  --texte: #22301F;
+  --texte-secondaire: #6E6C5F;
+  --bordure: rgba(18, 38, 28, 0.10);
+  --bordure-or: rgba(184, 130, 30, 0.35);
+  --or-texte: #8A6416;
+  --danger: #C4453A;
 }
 
 * { box-sizing: border-box; }
@@ -26,8 +43,8 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--vert-fonce);
-  color: var(--creme);
+  background: var(--fond);
+  color: var(--texte);
   font-family: var(--police-texte);
   font-size: 16px;
   line-height: 1.5;
@@ -67,12 +84,12 @@ button {
   position: relative;
   background: transparent;
   border: none;
-  color: var(--creme);
+  color: var(--texte);
   padding: 8px;
   border-radius: var(--rayon-petit);
   display: inline-flex;
 }
-.bouton-icone:hover { background: var(--vert-carte-claire); }
+.bouton-icone:hover { background: var(--fond-carte-claire); }
 
 .lien {
   background: none;
@@ -85,7 +102,8 @@ button {
 }
 
 /* =========================================================
-   Écran d'authentification
+   Écran d'authentification — toujours clair, indépendant du
+   thème choisi pour le reste de l'application
    ========================================================= */
 .ecran-auth {
   min-height: 100vh;
@@ -93,22 +111,24 @@ button {
   align-items: center;
   justify-content: center;
   padding: 32px 20px;
+  background: #FFFFFF;
 }
 
 .auth-carte {
   width: 100%;
   max-width: 380px;
-  background: var(--vert-carte);
-  border: 1px solid var(--bordure);
+  background: #FFFFFF;
+  border: 1px solid #E7E3D6;
   border-radius: var(--rayon);
   padding: 32px 28px;
+  box-shadow: 0 8px 28px rgba(18, 38, 28, 0.08);
 }
 
 .auth-slogan {
-  margin: 0 0 4px;
+  margin: 0 0 16px;
   font-size: 12px;
   letter-spacing: 0.04em;
-  color: var(--or-clair);
+  color: #B9862E;
   text-align: center;
 }
 
@@ -118,13 +138,13 @@ button {
   font-size: 40px;
   margin: 0;
   text-align: center;
-  color: var(--creme);
+  color: #12261C;
 }
 
 .auth-soustitre {
   margin: 4px 0 28px;
   text-align: center;
-  color: var(--gris-sauge);
+  color: #6E6C5F;
   font-size: 14px;
 }
 
@@ -139,15 +159,15 @@ button {
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
-  color: var(--gris-sauge);
+  color: #6E6C5F;
 }
 
 .champ input {
-  background: var(--vert-fonce);
-  border: 1px solid var(--bordure);
+  background: #F7F5EE;
+  border: 1px solid #E7E3D6;
   border-radius: var(--rayon-petit);
   padding: 11px 12px;
-  color: var(--creme);
+  color: #22301F;
   font-size: 15px;
   font-family: inherit;
 }
@@ -167,15 +187,15 @@ button {
   right: 6px;
   background: none;
   border: none;
-  color: var(--gris-sauge);
+  color: #9C9A8C;
   padding: 6px;
   display: flex;
 }
-.bouton-oeil:hover { color: var(--creme); }
+.bouton-oeil:hover { color: #22301F; }
 
 .auth-erreur {
   margin: 0;
-  color: var(--danger);
+  color: #C4453A;
   font-size: 13px;
 }
 
@@ -183,22 +203,22 @@ button {
   margin: 20px 0 0;
   text-align: center;
   font-size: 14px;
-  color: var(--gris-sauge);
+  color: #6E6C5F;
 }
 
 .auth-confirmation {
   margin: 16px 0 0;
   padding: 12px;
-  background: var(--vert-carte-claire);
-  border: 1px solid var(--bordure-or);
+  background: #FBF0DC;
+  border: 1px solid rgba(184, 130, 30, 0.35);
   border-radius: var(--rayon-petit);
   font-size: 13px;
-  color: var(--or-texte);
+  color: #8A6416;
   text-align: center;
 }
 
 /* =========================================================
-   Coquille de l'application
+   Coquille de l'application (thème sombre/clair selon choix)
    ========================================================= */
 .app-shell {
   min-height: 100vh;
@@ -214,19 +234,14 @@ button {
   align-items: center;
   justify-content: space-between;
   padding: 14px 20px;
-  background: var(--vert-fonce);
+  background: var(--fond);
   border-bottom: 1px solid var(--bordure);
 }
 
-.entete-marque { display: flex; flex-direction: column; }
-.entete-logo {
-  font-family: var(--police-titre);
-  font-size: 22px;
-  font-weight: 600;
-}
+.entete-marque { display: flex; flex-direction: column; gap: 4px; }
 .entete-valeurs {
   font-size: 11px;
-  color: var(--gris-sauge);
+  color: var(--texte-secondaire);
   letter-spacing: 0.02em;
 }
 
@@ -249,7 +264,7 @@ button {
   right: 16px;
   z-index: 30;
   width: min(320px, calc(100vw - 32px));
-  background: var(--vert-carte);
+  background: var(--fond-carte);
   border: 1px solid var(--bordure-or);
   border-radius: var(--rayon);
   padding: 16px;
@@ -271,7 +286,7 @@ button {
 }
 .liste-notifications li {
   font-size: 13px;
-  color: var(--creme);
+  color: var(--texte);
   padding-bottom: 10px;
   border-bottom: 1px solid var(--bordure);
 }
@@ -282,7 +297,7 @@ button {
   position: fixed;
   inset: 0 20% 0 0;
   z-index: 25;
-  background: var(--vert-fonce);
+  background: var(--fond);
   border-right: 1px solid var(--bordure);
   padding: 20px 12px;
   overflow-y: auto;
@@ -295,7 +310,7 @@ button {
   text-align: left;
   background: none;
   border: none;
-  color: var(--creme);
+  color: var(--texte);
   font-size: 15px;
   padding: 12px 12px;
   border-radius: var(--rayon-petit);
@@ -303,14 +318,14 @@ button {
   align-items: center;
   justify-content: space-between;
 }
-.menu-item:hover { background: var(--vert-carte); }
-.menu-item.actif { background: var(--vert-carte-claire); color: var(--or-texte); }
+.menu-item:hover { background: var(--fond-carte); }
+.menu-item.actif { background: var(--fond-carte-claire); color: var(--or-texte); }
 
 .menu-item-groupe::after {
   content: "›";
   transform: rotate(90deg);
   transition: transform 0.15s ease;
-  color: var(--gris-sauge);
+  color: var(--texte-secondaire);
 }
 .menu-item-groupe[aria-expanded="true"]::after { transform: rotate(-90deg); }
 
@@ -319,8 +334,8 @@ button {
   margin: 0 0 4px;
   padding: 0 0 0 14px;
 }
-.sous-menu .menu-item { font-size: 14px; color: var(--gris-sauge); }
-.sous-menu .menu-item:hover { color: var(--creme); }
+.sous-menu .menu-item { font-size: 14px; color: var(--texte-secondaire); }
+.sous-menu .menu-item:hover { color: var(--texte); }
 
 .menu-separateur {
   height: 1px;
@@ -339,7 +354,7 @@ button {
   margin: 0 auto;
 }
 
-.chargement { color: var(--gris-sauge); text-align: center; padding: 40px 0; }
+.chargement { color: var(--texte-secondaire); text-align: center; padding: 40px 0; }
 
 /* Titres génériques de section, utilisés par le routeur */
 .titre-section {
@@ -358,7 +373,7 @@ button {
 
 /* Cartes génériques */
 .carte {
-  background: var(--vert-carte);
+  background: var(--fond-carte);
   border: 1px solid var(--bordure);
   border-radius: var(--rayon);
   padding: 18px;
@@ -366,3 +381,17 @@ button {
 }
 
 [hidden] { display: none !important; }
+
+/* Logo (fourni via lien direct postimg.cc) */
+.logo-entete {
+  height: 40px;
+  width: auto;
+  border-radius: 6px;
+  display: block;
+}
+.logo-auth {
+  width: 150px;
+  height: auto;
+  display: block;
+  margin: 0 auto 16px;
+   }
