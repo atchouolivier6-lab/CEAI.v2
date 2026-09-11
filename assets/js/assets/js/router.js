@@ -17,17 +17,17 @@ async function ecranAccueil(conteneur) {
   conteneur.innerHTML = `
     <h2 class="titre-section">Accueil</h2>
     <hr class="trait-or" />
-    <p style="color:var(--gris-sauge)">Bienvenue${nom ? " " + nom : ""}.</p>
+    <p style="color:var(--texte-secondaire)">Bienvenue${nom ? " " + nom : ""}.</p>
     <div class="carte">
-      <p style="color:var(--gris-sauge); font-size:13px; margin:0 0 4px">Capital cotisation</p>
+      <p style="color:var(--texte-secondaire); font-size:13px; margin:0 0 4px">Capital cotisation</p>
       <p style="font-family:var(--police-titre); font-size:28px; margin:0">—</p>
     </div>
     <div class="carte">
-      <p style="color:var(--gris-sauge); font-size:13px; margin:0 0 4px">Cycle de tontine en cours</p>
+      <p style="color:var(--texte-secondaire); font-size:13px; margin:0 0 4px">Cycle de tontine en cours</p>
       <p style="margin:0">—</p>
     </div>
     <div class="carte">
-      <p style="color:var(--gris-sauge); font-size:13px; margin:0 0 4px">Membres actifs</p>
+      <p style="color:var(--texte-secondaire); font-size:13px; margin:0 0 4px">Membres actifs</p>
       <p style="margin:0">—</p>
     </div>
   `;
@@ -40,7 +40,7 @@ function ecranProvisoire(titre) {
     conteneur.innerHTML = `
       <h2 class="titre-section">${titre}</h2>
       <hr class="trait-or" />
-      <p style="color:var(--gris-sauge)">Cet écran sera construit à l'étape suivante.</p>
+      <p style="color:var(--texte-secondaire)">Cet écran sera construit à l'étape suivante.</p>
     `;
   };
 }
@@ -93,4 +93,4 @@ export function initialiserRouteur() {
 
   const routeInitiale = window.location.hash.replace("#", "") || "accueil";
   naviguerVers(routeInitiale);
-                            }
+    }
