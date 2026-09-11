@@ -13,41 +13,6 @@
 <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
-<!-- ===== DEBUG TEMPORAIRE : vérifie que chaque fichier existe bien, à retirer une fois le bug résolu ===== -->
-<script>
-  function afficherErreurDebug(texte) {
-    let banniere = document.getElementById('debug-erreur');
-    if (!banniere) {
-      banniere = document.createElement('div');
-      banniere.id = 'debug-erreur';
-      banniere.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#111;color:#fff;padding:10px;font-size:12px;font-family:monospace;white-space:pre-wrap;max-height:60vh;overflow:auto';
-      document.body.appendChild(banniere);
-    }
-    const ligne = document.createElement('div');
-    ligne.style.marginBottom = '6px';
-    ligne.textContent = texte;
-    banniere.appendChild(ligne);
-  }
-  window.addEventListener('error', (e) => {
-    afficherErreurDebug('🔴 ERREUR : ' + e.message + '  [' + e.filename + ':' + e.lineno + ']');
-  }, true);
-  window.addEventListener('unhandledrejection', (e) => {
-    afficherErreurDebug('🔴 PROMESSE REJETÉE : ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
-  });
-
-  [
-    "assets/js/supabase-client.js",
-    "assets/js/auth.js",
-    "assets/js/router.js",
-    "assets/js/app.js",
-    "assets/js/ecrans/membres-profil.js",
-  ].forEach((chemin) => {
-    fetch(chemin)
-      .then((reponse) => afficherErreurDebug((reponse.ok ? "✅ " : "❌ ") + reponse.status + " — " + chemin))
-      .catch((e) => afficherErreurDebug("❌ échec réseau — " + chemin + " — " + e.message));
-  });
-</script>
-<!-- ===== FIN DEBUG TEMPORAIRE ===== -->
   
 <!-- ===================== ÉCRAN AUTHENTIFICATION ===================== -->
 <div id="ecran-auth" class="ecran-auth">
