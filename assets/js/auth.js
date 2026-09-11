@@ -126,13 +126,6 @@ export function afficherAuthentification() {
 
 // --- Vérifie la session au chargement -----------------------------------
 export async function initialiserAuthentification() {
-  const { data } = await supabase.auth.getSession();
-  if (data.session) {
-    afficherApplication();
-  } else {
-    afficherAuthentification();
-  }
-
   supabase.auth.onAuthStateChange((_evenement, session) => {
     if (session) {
       afficherApplication();
