@@ -48,7 +48,7 @@ function rendreLecture(conteneur, profil, utilisateurId) {
 
     <div class="carte" style="text-align:center">
       <div style="position:relative; width:88px; height:88px; margin:0 auto 12px">
-        <div id="avatar-rond" style="width:88px; height:88px; border-radius:50%; background:var(--vert-carte-claire);
+        <div id="avatar-rond" style="width:88px; height:88px; border-radius:50%; background:var(--fond-carte-claire);
              display:flex; align-items:center; justify-content:center; font-family:var(--police-titre);
              font-size:32px; color:var(--or-texte); overflow:hidden">
           ${profil.photo_url ? `<img src="${profil.photo_url}" alt="" style="width:100%;height:100%;object-fit:cover" />` : initiale(profil.nom)}
@@ -62,10 +62,10 @@ function rendreLecture(conteneur, profil, utilisateurId) {
         <input type="file" id="entree-photo" accept="image/*" hidden />
       </div>
       <p style="font-family:var(--police-titre); font-size:18px; margin:0">${profil.nom}</p>
-      <p style="color:var(--gris-sauge); font-size:13px; margin:4px 0 10px">${profil.email}</p>
-      <span style="display:inline-block; background:var(--vert-carte-claire); color:var(--or-texte);
+      <p style="color:var(--texte-secondaire); font-size:13px; margin:4px 0 10px">${profil.email}</p>
+      <span style="display:inline-block; background:var(--fond-carte-claire); color:var(--or-texte);
              font-size:11px; padding:3px 10px; border-radius:999px; text-transform:capitalize">${profil.role}</span>
-      <p style="color:var(--gris-sauge); font-size:12px; margin-top:14px">${formaterMembreDepuis(profil.cree_le)}</p>
+      <p style="color:var(--texte-secondaire); font-size:12px; margin-top:14px">${formaterMembreDepuis(profil.cree_le)}</p>
       <p id="erreur-photo" style="color:var(--danger); font-size:12px; margin-top:8px" hidden></p>
     </div>
 
@@ -74,11 +74,11 @@ function rendreLecture(conteneur, profil, utilisateurId) {
         <p style="margin:0; font-weight:500">Informations</p>
         <button id="bouton-modifier" class="lien">Modifier</button>
       </div>
-      <p style="color:var(--gris-sauge); font-size:12px; margin:0">EMAIL</p>
+      <p style="color:var(--texte-secondaire); font-size:12px; margin:0">EMAIL</p>
       <p style="margin:2px 0 12px">${profil.email}</p>
-      <p style="color:var(--gris-sauge); font-size:12px; margin:0">TÉLÉPHONE</p>
+      <p style="color:var(--texte-secondaire); font-size:12px; margin:0">TÉLÉPHONE</p>
       <p style="margin:2px 0 12px">${profil.telephone || "—"}</p>
-      <p style="color:var(--gris-sauge); font-size:12px; margin:0">BIO</p>
+      <p style="color:var(--texte-secondaire); font-size:12px; margin:0">BIO</p>
       <p style="margin:2px 0 0">${profil.bio || "—"}</p>
     </div>
   `;
@@ -141,14 +141,14 @@ function rendreEdition(conteneur, profil, utilisateurId) {
       </label>
       <label class="champ">
         <span>Bio</span>
-        <textarea name="bio" rows="4" style="background:var(--vert-fonce); border:1px solid var(--bordure);
-                  border-radius:var(--rayon-petit); padding:11px 12px; color:var(--creme); font-family:inherit;
+        <textarea name="bio" rows="4" style="background:var(--fond); border:1px solid var(--bordure);
+                  border-radius:var(--rayon-petit); padding:11px 12px; color:var(--texte); font-family:inherit;
                   font-size:15px; resize:vertical">${profil.bio || ""}</textarea>
       </label>
       <p id="erreur-profil" style="color:var(--danger); font-size:13px; margin:0" hidden></p>
       <div style="display:flex; gap:10px">
         <button type="submit" class="bouton bouton-or">Enregistrer</button>
-        <button type="button" id="bouton-annuler" class="bouton" style="background:var(--vert-carte-claire); color:var(--creme)">Annuler</button>
+        <button type="button" id="bouton-annuler" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte)">Annuler</button>
       </div>
     </form>
   `;
@@ -178,4 +178,4 @@ function rendreEdition(conteneur, profil, utilisateurId) {
 
     ecranMonProfil(conteneur);
   });
-}
+      }
