@@ -13,7 +13,30 @@
 <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
-
+<!-- ===== DEBUG TEMPORAIRE : affiche les erreurs JS à l'écran, à retirer une fois le bug résolu ===== -->
+<script>
+  function afficherErreurDebug(texte) {
+    let banniere = document.getElementById('debug-erreur');
+    if (!banniere) {
+      banniere = document.createElement('div');
+      banniere.id = 'debug-erreur';
+      banniere.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;padding:10px;font-size:12px;font-family:monospace;white-space:pre-wrap;max-height:50vh;overflow:auto';
+      document.body.appendChild(banniere);
+    }
+    const ligne = document.createElement('div');
+    ligne.style.marginBottom = '6px';
+    ligne.textContent = texte;
+    banniere.appendChild(ligne);
+  }
+  window.addEventListener('error', (e) => {
+    afficherErreurDebug('ERREUR : ' + e.message + '  [' + e.filename + ':' + e.lineno + ']');
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    afficherErreurDebug('PROMESSE REJETÉE : ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+  });
+</script>
+<!-- ===== FIN DEBUG TEMPORAIRE ===== -->
+  
 <!-- ===================== ÉCRAN AUTHENTIFICATION ===================== -->
 <div id="ecran-auth" class="ecran-auth">
   <div class="auth-carte">
