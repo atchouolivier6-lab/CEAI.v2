@@ -15,6 +15,8 @@ import { ecranTontineRejoindre, ecranTontineSuivi, ecranTontineVerser } from "./
 import { ecranTontineArchives } from "./ecrans/tontine-archives.js";
 import { ecranAPropos } from "./ecrans/a-propos.js";
 import { ecranFondateurs } from "./ecrans/fondateurs.js";
+import { ecranPublications } from "./ecrans/publications.js";
+import { ecranAdminCotisations } from "./ecrans/admin-cotisations.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
 
@@ -64,7 +66,7 @@ const routes = {
   "tontine/suivi": ecranTontineSuivi,
   "tontine/verser": ecranTontineVerser,
   "tontine/archives": ecranTontineArchives,
-  "publications": ecranProvisoire("Publications"),
+  "publications": ecranPublications,
   "membres/annuaire": ecranAnnuaire,
   "membres/profil": ecranMonProfil,
   "membres/messagerie": ecranMessagerie,
@@ -72,7 +74,7 @@ const routes = {
   "fondateurs": ecranFondateurs,
   "admin/tableau-de-bord": ecranProvisoire("Tableau de bord admin"),
   "admin/membres": ecranProvisoire("Gestion des membres"),
-  "admin/cotisations": ecranProvisoire("Gestion des cotisations"),
+  "admin/cotisations": ecranAdminCotisations,
   "admin/tontine": ecranProvisoire("Gestion de la tontine"),
   "admin/publications": ecranProvisoire("Gestion des publications"),
   "admin/notifications": ecranProvisoire("Gestion des notifications"),
