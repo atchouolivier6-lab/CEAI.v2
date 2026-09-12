@@ -9,6 +9,7 @@ import { supabase } from "./supabase-client.js";
 import { ecranMonProfil } from "./ecrans/membres-profil.js";
 import { ecranAnnuaire } from "./ecrans/membres-annuaire.js";
 import { ecranMessagerie } from "./ecrans/membres-messagerie.js";
+import { ecranCotisationAdherer, ecranCotisationSuivi, ecranCotisationVerser } from "./ecrans/cotisation-membre.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
 
@@ -50,9 +51,9 @@ function ecranProvisoire(titre) {
 // Table de routage : route -> fonction de rendu
 const routes = {
   "accueil": ecranAccueil,
-  "cotisation/adherer": ecranProvisoire("Adhérer à la cotisation"),
-  "cotisation/suivi": ecranProvisoire("Suivi de mes cotisations"),
-  "cotisation/verser": ecranProvisoire("Faire mon versement — Cotisation"),
+  "cotisation/adherer": ecranCotisationAdherer,
+  "cotisation/suivi": ecranCotisationSuivi,
+  "cotisation/verser": ecranCotisationVerser,
   "cotisation/archives": ecranProvisoire("Sessions de cotisation clôturées"),
   "tontine/rejoindre": ecranProvisoire("Rejoindre la tontine"),
   "tontine/suivi": ecranProvisoire("Suivi de mon cycle"),
@@ -86,6 +87,8 @@ export async function naviguerVers(route) {
 }
 
 export function initialiserRouteur() {
+  window.addEventListener("ceai:naviguer", (evenement) => naviguerVers(evenement.detail));
+
   document.querySelectorAll(".menu-item[data-route]").forEach((bouton) => {
     bouton.addEventListener("click", () => {
       naviguerVers(bouton.dataset.route);
@@ -95,4 +98,4 @@ export function initialiserRouteur() {
 
   const routeInitiale = window.location.hash.replace("#", "") || "accueil";
   naviguerVers(routeInitiale);
-                                       }
+}
