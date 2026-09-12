@@ -46,19 +46,17 @@ export async function ecranFondateurs(conteneur) {
 
     ${
       fondateurs && fondateurs.length
-        ? `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:12px; margin-bottom:16px">${cartesFondateurs}</div>`
+        ? `<p style="font-family:var(--police-titre); font-size:16px; margin:0 0 10px">Membres fondateurs</p>
+           <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:12px; margin-bottom:16px">${cartesFondateurs}</div>`
         : ""
     }
 
     ${
       page?.concepteur_nom
-        ? `<div style="height:36px; position:relative; margin-top:20px">
-            <span style="position:absolute; right:4px; bottom:0; transform:rotate(-90deg); transform-origin:bottom right;
-                  white-space:nowrap; font-family:var(--police-titre); font-style:italic; font-size:12px;
-                  color:var(--texte-secondaire); letter-spacing:0.02em">
-              Concepteur : ${page.concepteur_nom}${page.concepteur_contact ? " — " + page.concepteur_contact : ""}
-            </span>
-          </div>`
+        ? `<p style="text-align:center; margin-top:24px; font-family:var(--police-titre); font-style:italic; font-size:12px;
+              color:var(--texte-secondaire); letter-spacing:0.02em">
+            Concepteur : ${page.concepteur_nom}${page.concepteur_contact ? " — " + page.concepteur_contact : ""}
+          </p>`
         : ""
     }
   `;
