@@ -52,12 +52,14 @@ export async function ecranFondateurs(conteneur) {
 
     ${
       page?.concepteur_nom
-        ? `<div class="carte" style="text-align:center">
-            <p style="margin:0; font-size:12px; color:var(--texte-secondaire)">CONCEPTEUR DU SITE</p>
-            <p style="margin:6px 0 0; font-weight:500">${page.concepteur_nom}</p>
-            ${page.concepteur_contact ? `<p style="margin:2px 0 0; font-size:13px; color:var(--texte-secondaire)">${page.concepteur_contact}</p>` : ""}
+        ? `<div style="height:36px; position:relative; margin-top:20px">
+            <span style="position:absolute; right:4px; bottom:0; transform:rotate(-90deg); transform-origin:bottom right;
+                  white-space:nowrap; font-family:var(--police-titre); font-style:italic; font-size:12px;
+                  color:var(--texte-secondaire); letter-spacing:0.02em">
+              Concepteur : ${page.concepteur_nom}${page.concepteur_contact ? " — " + page.concepteur_contact : ""}
+            </span>
           </div>`
         : ""
     }
   `;
-          }
+}
