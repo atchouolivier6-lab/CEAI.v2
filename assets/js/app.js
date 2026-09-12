@@ -90,7 +90,7 @@ async function afficherMenuSelonRole() {
   const { data: profil } = await supabase
     .from("profils")
     .select("role")
-    .eq("id", session.user.id)
+    .eq("id_auth", session.user.id)
     .single();
 
   menuAdmin.hidden = profil?.role !== "admin";
