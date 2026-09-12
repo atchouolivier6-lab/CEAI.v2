@@ -17,6 +17,7 @@ import { ecranAPropos } from "./ecrans/a-propos.js";
 import { ecranFondateurs } from "./ecrans/fondateurs.js";
 import { ecranPublications } from "./ecrans/publications.js";
 import { ecranAdminCotisations } from "./ecrans/admin-cotisations.js";
+import { ecranAdminTontine } from "./ecrans/admin-tontine.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
 
@@ -75,7 +76,7 @@ const routes = {
   "admin/tableau-de-bord": ecranProvisoire("Tableau de bord admin"),
   "admin/membres": ecranProvisoire("Gestion des membres"),
   "admin/cotisations": ecranAdminCotisations,
-  "admin/tontine": ecranProvisoire("Gestion de la tontine"),
+  "admin/tontine": ecranAdminTontine,
   "admin/publications": ecranProvisoire("Gestion des publications"),
   "admin/notifications": ecranProvisoire("Gestion des notifications"),
   "admin/statistiques": ecranProvisoire("Statistiques et rapports"),
