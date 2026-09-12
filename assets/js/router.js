@@ -11,6 +11,7 @@ import { ecranAnnuaire } from "./ecrans/membres-annuaire.js";
 import { ecranMessagerie } from "./ecrans/membres-messagerie.js";
 import { ecranCotisationAdherer, ecranCotisationSuivi, ecranCotisationVerser } from "./ecrans/cotisation-membre.js";
 import { ecranCotisationArchives } from "./ecrans/cotisation-archives.js";
+import { ecranTontineRejoindre, ecranTontineSuivi, ecranTontineVerser } from "./ecrans/tontine-membre.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
 
@@ -56,9 +57,9 @@ const routes = {
   "cotisation/suivi": ecranCotisationSuivi,
   "cotisation/verser": ecranCotisationVerser,
   "cotisation/archives": ecranCotisationArchives,
-  "tontine/rejoindre": ecranProvisoire("Rejoindre la tontine"),
-  "tontine/suivi": ecranProvisoire("Suivi de mon cycle"),
-  "tontine/verser": ecranProvisoire("Faire mon versement — Tontine"),
+  "tontine/rejoindre": ecranTontineRejoindre,
+  "tontine/suivi": ecranTontineSuivi,
+  "tontine/verser": ecranTontineVerser,
   "tontine/archives": ecranProvisoire("Cycles de tontine clôturés"),
   "publications": ecranProvisoire("Publications"),
   "membres/annuaire": ecranAnnuaire,
@@ -99,4 +100,4 @@ export function initialiserRouteur() {
 
   const routeInitiale = window.location.hash.replace("#", "") || "accueil";
   naviguerVers(routeInitiale);
-}
+  }
