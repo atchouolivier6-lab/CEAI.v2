@@ -12,6 +12,7 @@ import { ecranMessagerie } from "./ecrans/membres-messagerie.js";
 import { ecranCotisationAdherer, ecranCotisationSuivi, ecranCotisationVerser } from "./ecrans/cotisation-membre.js";
 import { ecranCotisationArchives } from "./ecrans/cotisation-archives.js";
 import { ecranTontineRejoindre, ecranTontineSuivi, ecranTontineVerser } from "./ecrans/tontine-membre.js";
+import { ecranTontineArchives } from "./ecrans/tontine-archives.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
 
@@ -60,7 +61,7 @@ const routes = {
   "tontine/rejoindre": ecranTontineRejoindre,
   "tontine/suivi": ecranTontineSuivi,
   "tontine/verser": ecranTontineVerser,
-  "tontine/archives": ecranProvisoire("Cycles de tontine clôturés"),
+  "tontine/archives": ecranTontineArchives,
   "publications": ecranProvisoire("Publications"),
   "membres/annuaire": ecranAnnuaire,
   "membres/profil": ecranMonProfil,
@@ -100,4 +101,4 @@ export function initialiserRouteur() {
 
   const routeInitiale = window.location.hash.replace("#", "") || "accueil";
   naviguerVers(routeInitiale);
-  }
+}
