@@ -13,6 +13,8 @@ import { ecranCotisationAdherer, ecranCotisationSuivi, ecranCotisationVerser } f
 import { ecranCotisationArchives } from "./ecrans/cotisation-archives.js";
 import { ecranTontineRejoindre, ecranTontineSuivi, ecranTontineVerser } from "./ecrans/tontine-membre.js";
 import { ecranTontineArchives } from "./ecrans/tontine-archives.js";
+import { ecranAPropos } from "./ecrans/a-propos.js";
+import { ecranFondateurs } from "./ecrans/fondateurs.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
 
@@ -66,8 +68,8 @@ const routes = {
   "membres/annuaire": ecranAnnuaire,
   "membres/profil": ecranMonProfil,
   "membres/messagerie": ecranMessagerie,
-  "a-propos": ecranProvisoire("À propos"),
-  "fondateurs": ecranProvisoire("Fondateurs"),
+  "a-propos": ecranAPropos,
+  "fondateurs": ecranFondateurs,
   "admin/tableau-de-bord": ecranProvisoire("Tableau de bord admin"),
   "admin/membres": ecranProvisoire("Gestion des membres"),
   "admin/cotisations": ecranProvisoire("Gestion des cotisations"),
