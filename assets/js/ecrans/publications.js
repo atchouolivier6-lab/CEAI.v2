@@ -2,6 +2,7 @@
 // CEAI — Écran "Publications"
 // =========================================================
 import { supabase } from "../supabase-client.js";
+import { idProfilCourant } from "../mon-profil.js";
 
 function formaterDate(dateIso) {
   return new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -14,8 +15,7 @@ function initiale(nom) {
 export async function ecranPublications(conteneur) {
   conteneur.innerHTML = `<h2 class="titre-section">Publications</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
-  const { data: session } = await supabase.auth.getUser();
-  const moiId = session?.user?.id;
+  const moiId = await idProfilCourant();
 
   const { data: monProfil } = await supabase.from("profils").select("role").eq("id", moiId).single();
   const jeSuisAdmin = monProfil?.role === "admin";
@@ -200,4 +200,4 @@ function brancherInteractions(conteneur, moiId, jeSuisAdmin) {
       rafraichirFil(conteneur, moiId, jeSuisAdmin);
     });
   });
-    }
+                                                 }
