@@ -2,6 +2,7 @@
 // CEAI — Écrans "Cotisation" (côté membre)
 // =========================================================
 import { supabase } from "../supabase-client.js";
+import { idProfilCourant } from "../mon-profil.js";
 
 function badgeStatut(statut) {
   const libelles = { en_attente: "En attente", valide: "Validé", rejete: "Rejeté" };
@@ -19,8 +20,7 @@ function formaterDate(dateIso) {
 }
 
 async function recupererContexte() {
-  const { data: session } = await supabase.auth.getUser();
-  const moiId = session?.user?.id;
+  const moiId = await idProfilCourant();
 
   const [{ data: adhesion }, { data: sessionOuverte }] = await Promise.all([
     supabase.from("cotisation_adhesions").select("adhere_le").eq("membre_id", moiId).maybeSingle(),
