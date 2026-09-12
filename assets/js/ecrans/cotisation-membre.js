@@ -66,7 +66,7 @@ export async function ecranCotisationAdherer(conteneur) {
     const { error } = await supabase.from("cotisation_adhesions").insert({ membre_id: moiId });
     if (error) {
       const erreur = document.getElementById("erreur-adhesion");
-      erreur.textContent = "L'adhésion a échoué, réessayez.";
+      erreur.textContent = "Erreur : " + error.message;
       erreur.hidden = false;
       return;
     }
@@ -205,4 +205,4 @@ function rendreRedirectionAdhesion(conteneur, titre) {
   document.getElementById("bouton-aller-adherer").addEventListener("click", () => {
     window.dispatchEvent(new CustomEvent("ceai:naviguer", { detail: "cotisation/adherer" }));
   });
-    }
+      }
