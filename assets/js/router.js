@@ -8,6 +8,7 @@
 import { supabase } from "./supabase-client.js";
 import { ecranMonProfil } from "./ecrans/membres-profil.js";
 import { ecranAnnuaire } from "./ecrans/membres-annuaire.js";
+import { ecranMessagerie } from "./ecrans/membres-messagerie.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
 
@@ -60,7 +61,7 @@ const routes = {
   "publications": ecranProvisoire("Publications"),
   "membres/annuaire": ecranAnnuaire,
   "membres/profil": ecranMonProfil,
-  "membres/messagerie": ecranProvisoire("Messagerie"),
+  "membres/messagerie": ecranMessagerie,
   "a-propos": ecranProvisoire("À propos"),
   "fondateurs": ecranProvisoire("Fondateurs"),
   "admin/tableau-de-bord": ecranProvisoire("Tableau de bord admin"),
@@ -94,4 +95,4 @@ export function initialiserRouteur() {
 
   const routeInitiale = window.location.hash.replace("#", "") || "accueil";
   naviguerVers(routeInitiale);
-  }
+                                       }
