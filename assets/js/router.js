@@ -7,6 +7,7 @@
 // =========================================================
 import { supabase } from "./supabase-client.js";
 import { ecranMonProfil } from "./ecrans/membres-profil.js";
+import { ecranAnnuaire } from "./ecrans/membres-annuaire.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
 
@@ -57,7 +58,7 @@ const routes = {
   "tontine/verser": ecranProvisoire("Faire mon versement — Tontine"),
   "tontine/archives": ecranProvisoire("Cycles de tontine clôturés"),
   "publications": ecranProvisoire("Publications"),
-  "membres/annuaire": ecranProvisoire("Annuaire des membres"),
+  "membres/annuaire": ecranAnnuaire,
   "membres/profil": ecranMonProfil,
   "membres/messagerie": ecranProvisoire("Messagerie"),
   "a-propos": ecranProvisoire("À propos"),
@@ -93,4 +94,4 @@ export function initialiserRouteur() {
 
   const routeInitiale = window.location.hash.replace("#", "") || "accueil";
   naviguerVers(routeInitiale);
-    }
+  }
