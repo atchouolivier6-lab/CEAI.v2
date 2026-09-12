@@ -2,6 +2,7 @@
 // CEAI — Écran admin "Gestion de la tontine"
 // =========================================================
 import { supabase } from "../supabase-client.js";
+import { idProfilCourant } from "../mon-profil.js";
 
 function formaterDate(dateIso) {
   return dateIso ? new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "—";
@@ -10,8 +11,7 @@ function formaterDate(dateIso) {
 export async function ecranAdminTontine(conteneur) {
   conteneur.innerHTML = `<h2 class="titre-section">Gestion de la tontine</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
-  const { data: session } = await supabase.auth.getUser();
-  const moiId = session?.user?.id;
+  const moiId = await idProfilCourant();
 
   const { data: cycleOuvert } = await supabase
     .from("tontine_cycles")
@@ -239,4 +239,4 @@ function rendreFormulaireOuverture(conteneur, moiId) {
 
     ecranAdminTontine(conteneur);
   });
-    }
+        }
