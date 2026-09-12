@@ -2,6 +2,7 @@
 // CEAI — Écran "Mon profil"
 // =========================================================
 import { supabase } from "../supabase-client.js";
+import { idProfilCourant } from "../mon-profil.js";
 
 const MOIS = [
   "janvier", "février", "mars", "avril", "mai", "juin",
@@ -18,8 +19,7 @@ function initiale(nom) {
 }
 
 export async function ecranMonProfil(conteneur) {
-  const { data: session } = await supabase.auth.getUser();
-  const utilisateurId = session?.user?.id;
+  const utilisateurId = await idProfilCourant();
 
   conteneur.innerHTML = '<p class="chargement">Chargement…</p>';
 
@@ -178,4 +178,4 @@ function rendreEdition(conteneur, profil, utilisateurId) {
 
     ecranMonProfil(conteneur);
   });
-      }
+                                                                                                       }
