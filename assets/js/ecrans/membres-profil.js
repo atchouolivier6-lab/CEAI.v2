@@ -109,7 +109,7 @@ async function televerserPhoto(fichier, utilisateurId, conteneur) {
     .upload(cheminFichier, fichier, { upsert: true });
 
   if (erreurUpload) {
-    erreurPhoto.textContent = "Le téléversement de la photo a échoué.";
+    erreurPhoto.textContent = "Erreur : " + erreurUpload.message;
     erreurPhoto.hidden = false;
     return;
   }
@@ -178,4 +178,4 @@ function rendreEdition(conteneur, profil, utilisateurId) {
 
     ecranMonProfil(conteneur);
   });
-                                                                                                       }
+                                            }
