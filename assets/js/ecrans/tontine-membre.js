@@ -2,6 +2,7 @@
 // CEAI — Écrans "Tontine" (côté membre)
 // =========================================================
 import { supabase } from "../supabase-client.js";
+import { idProfilCourant } from "../mon-profil.js";
 
 function badgeStatut(statut) {
   const libelles = { en_attente: "En attente", valide: "Validé", rejete: "Rejeté" };
@@ -19,8 +20,7 @@ function initiale(nom) {
 }
 
 async function recupererContexte() {
-  const { data: session } = await supabase.auth.getUser();
-  const moiId = session?.user?.id;
+  const moiId = await idProfilCourant();
 
   const { data: cycleOuvert } = await supabase
     .from("tontine_cycles")
@@ -247,4 +247,4 @@ export async function ecranTontineVerser(conteneur) {
     evenement.target.reset();
     succes.hidden = false;
   });
-    }
+      }
