@@ -2,6 +2,7 @@
 // CEAI — Écran "Messagerie"
 // =========================================================
 import { supabase } from "../supabase-client.js";
+import { idProfilCourant } from "../mon-profil.js";
 
 let canalMessagerie = null;
 
@@ -36,8 +37,7 @@ export async function ecranMessagerie(conteneur) {
     <p class="chargement">Chargement…</p>
   `;
 
-  const { data: session } = await supabase.auth.getUser();
-  const moiId = session?.user?.id;
+  const moiId = await idProfilCourant();
 
   const [{ data: membres }, { data: messages }] = await Promise.all([
     supabase.from("profils").select("id, nom, photo_url").neq("id", moiId).order("nom"),
@@ -182,4 +182,4 @@ async function ouvrirConversation(conteneur, contact, moiId) {
       contenu,
     });
   });
-      }
+                            }
