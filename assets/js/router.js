@@ -10,6 +10,7 @@ import { ecranMonProfil } from "./ecrans/membres-profil.js";
 import { ecranAnnuaire } from "./ecrans/membres-annuaire.js";
 import { ecranMessagerie } from "./ecrans/membres-messagerie.js";
 import { ecranCotisationAdherer, ecranCotisationSuivi, ecranCotisationVerser } from "./ecrans/cotisation-membre.js";
+import { ecranCotisationArchives } from "./ecrans/cotisation-archives.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
 
@@ -54,7 +55,7 @@ const routes = {
   "cotisation/adherer": ecranCotisationAdherer,
   "cotisation/suivi": ecranCotisationSuivi,
   "cotisation/verser": ecranCotisationVerser,
-  "cotisation/archives": ecranProvisoire("Sessions de cotisation clôturées"),
+  "cotisation/archives": ecranCotisationArchives,
   "tontine/rejoindre": ecranProvisoire("Rejoindre la tontine"),
   "tontine/suivi": ecranProvisoire("Suivi de mon cycle"),
   "tontine/verser": ecranProvisoire("Faire mon versement — Tontine"),
