@@ -156,6 +156,7 @@ async function ouvrirConversation(conteneur, contact, moiId) {
   }
 
   await chargerFil();
+  await marquerCommeLu();
 
   seDesabonner();
   canalMessagerie = supabase
@@ -165,9 +166,21 @@ async function ouvrirConversation(conteneur, contact, moiId) {
       const concerneCetteConversation =
         (m.expediteur_id === moiId && m.destinataire_id === contact.id) ||
         (m.expediteur_id === contact.id && m.destinataire_id === moiId);
-      if (concerneCetteConversation) chargerFil();
+      if (concerneCetteConversation) {
+        chargerFil();
+        marquerCommeLu();
+      }
     })
     .subscribe();
+
+  async function marquerCommeLu() {
+    await supabase
+      .from("messages")
+      .update({ lu: true })
+      .eq("expediteur_id", contact.id)
+      .eq("destinataire_id", moiId)
+      .eq("lu", false);
+  }
 
   document.getElementById("formulaire-message").addEventListener("submit", async (evenement) => {
     evenement.preventDefault();
@@ -181,5 +194,9 @@ async function ouvrirConversation(conteneur, contact, moiId) {
       destinataire_id: contact.id,
       contenu,
     });
+
+    // On rafraîchit tout de suite, sans attendre le Realtime : garantit que
+    // l'expéditeur voit son propre message instantanément dans tous les cas.
+    await chargerFil();
   });
-                            }
+}
