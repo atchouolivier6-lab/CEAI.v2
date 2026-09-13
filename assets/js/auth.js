@@ -90,7 +90,7 @@ formulaireInscription.addEventListener("submit", async (evenement) => {
   const email = donnees.get("email");
   const motDePasse = donnees.get("mot_de_passe");
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password: motDePasse,
     options: { data: { nom } },
@@ -98,6 +98,12 @@ formulaireInscription.addEventListener("submit", async (evenement) => {
 
   if (error) {
     afficherErreur("formulaire-inscription", "Impossible de créer le compte : " + error.message);
+    return;
+  }
+
+  if (data.session) {
+    // Confirmation email désactivée : le compte est actif immédiatement,
+    // afficherApplication() se déclenche automatiquement via onAuthStateChange.
     return;
   }
 
@@ -133,4 +139,4 @@ export async function initialiserAuthentification() {
       afficherAuthentification();
     }
   });
-}
+    }
