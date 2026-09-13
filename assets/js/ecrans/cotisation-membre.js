@@ -3,6 +3,7 @@
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
+import { notifier } from "../notifier.js";
 
 function badgeStatut(statut) {
   const libelles = { en_attente: "En attente", valide: "Validé", rejete: "Rejeté" };
@@ -71,6 +72,7 @@ export async function ecranCotisationAdherer(conteneur) {
       return;
     }
     ecranCotisationAdherer(conteneur);
+    notifier("Un nouveau membre a rejoint la cotisation.");
   });
 }
 
@@ -205,4 +207,4 @@ function rendreRedirectionAdhesion(conteneur, titre) {
   document.getElementById("bouton-aller-adherer").addEventListener("click", () => {
     window.dispatchEvent(new CustomEvent("ceai:naviguer", { detail: "cotisation/adherer" }));
   });
-      }
+  }
