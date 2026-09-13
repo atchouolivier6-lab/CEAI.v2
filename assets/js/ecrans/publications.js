@@ -3,6 +3,7 @@
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
+import { notifier } from "../notifier.js";
 
 function formaterDate(dateIso) {
   return new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -103,6 +104,7 @@ function brancherFormulaireCreation(conteneur, moiId) {
     }
 
     ecranPublications(conteneur);
+    notifier("Une nouvelle publication a été partagée.");
   });
 }
 
@@ -200,4 +202,4 @@ function brancherInteractions(conteneur, moiId, jeSuisAdmin) {
       rafraichirFil(conteneur, moiId, jeSuisAdmin);
     });
   });
-                                                 }
+      }
