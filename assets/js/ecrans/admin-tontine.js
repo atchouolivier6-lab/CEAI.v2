@@ -3,6 +3,7 @@
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
+import { notifier } from "../notifier.js";
 
 function formaterDate(dateIso) {
   return dateIso ? new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "—";
@@ -83,6 +84,7 @@ export async function ecranAdminTontine(conteneur) {
       .update({ statut: "cloture", cloture_par: moiId, cloture_le: new Date().toISOString() })
       .eq("id", cycleOuvert.id);
     ecranAdminTontine(conteneur);
+    notifier(`Le cycle de tontine "${cycleOuvert.nom}" a été clôturé.`);
   });
 
   document.getElementById("bouton-tirage").addEventListener("click", () => {
@@ -238,5 +240,6 @@ function rendreFormulaireOuverture(conteneur, moiId) {
     }
 
     ecranAdminTontine(conteneur);
+    notifier(`Nouveau cycle de tontine ouvert : ${donnees.get("nom").trim()}`);
   });
-        }
+      }
