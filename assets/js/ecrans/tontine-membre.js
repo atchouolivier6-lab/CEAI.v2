@@ -3,6 +3,7 @@
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
+import { notifier } from "../notifier.js";
 
 function badgeStatut(statut) {
   const libelles = { en_attente: "En attente", valide: "Validé", rejete: "Rejeté" };
@@ -118,6 +119,7 @@ export async function ecranTontineRejoindre(conteneur) {
     }
 
     ecranTontineRejoindre(conteneur);
+    notifier("Un nouveau membre a rejoint la tontine.");
   });
 }
 
@@ -247,4 +249,4 @@ export async function ecranTontineVerser(conteneur) {
     evenement.target.reset();
     succes.hidden = false;
   });
-      }
+                                                              }
