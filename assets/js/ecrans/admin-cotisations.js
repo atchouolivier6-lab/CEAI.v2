@@ -3,6 +3,7 @@
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
+import { notifier } from "../notifier.js";
 
 function formaterDate(dateIso) {
   return dateIso ? new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "—";
@@ -73,6 +74,7 @@ export async function ecranAdminCotisations(conteneur) {
       .eq("id", sessionOuverte.id);
 
     ecranAdminCotisations(conteneur);
+    notifier(`La session de cotisation "${sessionOuverte.nom}" a été clôturée.`);
   });
 
   conteneur.querySelectorAll("[data-valider]").forEach((bouton) => {
@@ -160,5 +162,6 @@ function rendreFormulaireOuverture(conteneur, moiId) {
     }
 
     ecranAdminCotisations(conteneur);
+    notifier(`Nouvelle session de cotisation ouverte : ${nom}`);
   });
-}
+          }
