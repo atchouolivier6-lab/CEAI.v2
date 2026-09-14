@@ -29,6 +29,17 @@ function apercuDernierMessage(m) {
   return m.contenu;
 }
 
+function ouvrirImagePleinEcran(url) {
+  const superposition = document.createElement("div");
+  superposition.style.cssText = `
+    position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.9);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  `;
+  superposition.innerHTML = `<img src="${url}" alt="" style="max-width:100%; max-height:100%; border-radius:8px" />`;
+  superposition.addEventListener("click", () => superposition.remove());
+  document.body.appendChild(superposition);
+}
+
 function seDesabonner() {
   if (canalMessagerie) {
     supabase.removeChannel(canalMessagerie);
@@ -160,7 +171,7 @@ async function ouvrirConversation(conteneur, contact, moiId) {
   async function chargerFil() {
     const { data: messages } = await supabase
       .from("messages")
-      .select("expediteur_id, contenu, type, media_url, envoye_le")
+      .select("id, expediteur_id, contenu, type, media_url, envoye_le")
       .or(
         `and(expediteur_id.eq.${moiId},destinataire_id.eq.${contact.id}),and(expediteur_id.eq.${contact.id},destinataire_id.eq.${moiId})`
       )
@@ -171,22 +182,44 @@ async function ouvrirConversation(conteneur, contact, moiId) {
         const estDeMoi = m.expediteur_id === moiId;
         let contenuBulle;
         if (m.type === "image") {
-          contenuBulle = `<img src="${m.media_url}" alt="" style="max-width:100%; border-radius:10px; display:block" />`;
+          contenuBulle = `<img src="${m.media_url}" alt="" class="image-message" data-url="${m.media_url}"
+                          style="max-width:100%; border-radius:10px; display:block; cursor:pointer" />`;
         } else if (m.type === "audio") {
           contenuBulle = `<audio src="${m.media_url}" controls style="width:220px; max-width:100%"></audio>`;
         } else {
           contenuBulle = `<p style="margin:0; font-size:14px">${m.contenu}</p>`;
         }
         return `
-        <div style="align-self:${estDeMoi ? "flex-end" : "flex-start"}; max-width:75%;
-             background:${estDeMoi ? "var(--or)" : "var(--fond-carte)"}; color:${estDeMoi ? "#3A2B0E" : "var(--texte)"};
-             border:1px solid ${estDeMoi ? "transparent" : "var(--bordure)"}; border-radius:14px; padding:8px 12px">
-          ${contenuBulle}
-          <p style="margin:2px 0 0; font-size:10px; opacity:0.7; text-align:right">${formaterHeure(m.envoye_le)}</p>
+        <div style="align-self:${estDeMoi ? "flex-end" : "flex-start"}; max-width:75%; position:relative">
+          <div style="background:${estDeMoi ? "var(--or)" : "var(--fond-carte)"}; color:${estDeMoi ? "#3A2B0E" : "var(--texte)"};
+               border:1px solid ${estDeMoi ? "transparent" : "var(--bordure)"}; border-radius:14px; padding:8px 12px">
+            ${contenuBulle}
+            <p style="margin:2px 0 0; font-size:10px; opacity:0.7; text-align:right">${formaterHeure(m.envoye_le)}</p>
+          </div>
+          ${
+            estDeMoi
+              ? `<button class="bouton-supprimer-message" data-id="${m.id}" aria-label="Supprimer ce message"
+                   style="all:unset; cursor:pointer; position:absolute; top:-8px; ${estDeMoi ? "left:-8px" : "right:-8px"};
+                   background:var(--fond); border:1px solid var(--bordure); border-radius:50%; width:22px; height:22px;
+                   display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--texte-secondaire)">✕</button>`
+              : ""
+          }
         </div>
       `;
       })
       .join("");
+
+    filMessages.querySelectorAll(".image-message").forEach((img) => {
+      img.addEventListener("click", () => ouvrirImagePleinEcran(img.dataset.url));
+    });
+
+    filMessages.querySelectorAll(".bouton-supprimer-message").forEach((bouton) => {
+      bouton.addEventListener("click", async () => {
+        if (!window.confirm("Supprimer ce message ?")) return;
+        await supabase.from("messages").delete().eq("id", bouton.dataset.id);
+        chargerFil();
+      });
+    });
 
     filMessages.scrollIntoView({ block: "end" });
   }
@@ -319,4 +352,4 @@ async function ouvrirConversation(conteneur, contact, moiId) {
       enregistreurAudio.stop();
     }
   }
-      }
+}
