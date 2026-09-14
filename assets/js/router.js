@@ -18,6 +18,7 @@ import { ecranFondateurs } from "./ecrans/fondateurs.js";
 import { ecranPublications } from "./ecrans/publications.js";
 import { ecranAdminCotisations } from "./ecrans/admin-cotisations.js";
 import { ecranAdminTontine } from "./ecrans/admin-tontine.js";
+import { ecranAdminMembres } from "./ecrans/admin-membres.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
 
@@ -74,7 +75,7 @@ const routes = {
   "a-propos": ecranAPropos,
   "fondateurs": ecranFondateurs,
   "admin/tableau-de-bord": ecranProvisoire("Tableau de bord admin"),
-  "admin/membres": ecranProvisoire("Gestion des membres"),
+  "admin/membres": ecranAdminMembres,
   "admin/cotisations": ecranAdminCotisations,
   "admin/tontine": ecranAdminTontine,
   "admin/publications": ecranProvisoire("Gestion des publications"),
@@ -106,4 +107,4 @@ export function initialiserRouteur() {
 
   const routeInitiale = window.location.hash.replace("#", "") || "accueil";
   naviguerVers(routeInitiale);
-  }
+    }
