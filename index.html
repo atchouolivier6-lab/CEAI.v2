@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>CEAI — Connaissance Entre Amis Intimes</title>
-  <script>
+<script>
   document.documentElement.setAttribute("data-theme", localStorage.getItem("ceai-theme") || "sombre");
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -13,13 +13,13 @@
 <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
-  
+
 <!-- ===================== ÉCRAN AUTHENTIFICATION ===================== -->
 <div id="ecran-auth" class="ecran-auth">
   <div class="auth-carte">
     <p class="auth-slogan">Engagement · Rigueur · Amitié</p>
-    <img src="https://i.postimg.cc/7CJbtf9j/logo.png" alt="Logo CEAI" class="logo-auth" />
-    
+    <img src="https://i.postimg.cc/7CJbtf9j/logo.png" alt="CEAI — Connaissance Entre Amis Intimes" class="logo-auth" />
+
     <!-- Connexion -->
     <form id="formulaire-connexion" class="auth-formulaire">
       <label class="champ">
@@ -82,13 +82,13 @@
 
   <header class="entete">
     <div class="entete-marque">
-      <img src="https://i.postimg.cc/7CJbtf9j/logo.png" alt="Logo CEAI" class="logo-entete" />
+      <img src="https://i.postimg.cc/7CJbtf9j/logo.png" alt="CEAI" class="logo-entete" />
       <span class="entete-valeurs">Engagement · Rigueur · Amitié</span>
     </div>
     <div class="entete-actions">
       <button id="bouton-theme" class="bouton-icone" aria-label="Changer de thème">
-  <svg id="icone-theme" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"></svg>
-</button>
+        <svg id="icone-theme" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"></svg>
+      </button>
       <button id="bouton-notifications" class="bouton-icone" aria-label="Notifications">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
         <span id="pastille-notifications" class="pastille" hidden></span>
@@ -136,6 +136,8 @@
 
       <li><button class="menu-item" data-route="publications">Publications</button></li>
 
+      <li><button class="menu-item" data-route="prets">Demande de prêt</button></li>
+
       <li class="menu-groupe">
         <button class="menu-item menu-item-groupe" data-groupe="membres" aria-expanded="false">
           Espace Membres
@@ -161,6 +163,7 @@
           <li><button class="menu-item" data-route="admin/tontine">Gestion de la tontine</button></li>
           <li><button class="menu-item" data-route="admin/publications">Gestion des publications</button></li>
           <li><button class="menu-item" data-route="admin/notifications">Gestion des notifications</button></li>
+          <li><button class="menu-item" data-route="admin/prets">Service de prêt</button></li>
           <li><button class="menu-item" data-route="admin/statistiques">Statistiques et rapports</button></li>
         </ul>
       </li>
@@ -182,4 +185,4 @@
 <script type="module" src="assets/js/router.js"></script>
 <script type="module" src="assets/js/app.js"></script>
 </body>
-        </html>
+  </html>
