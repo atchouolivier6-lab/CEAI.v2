@@ -21,6 +21,9 @@ import { ecranAdminTontine } from "./ecrans/admin-tontine.js";
 import { ecranAdminMembres } from "./ecrans/admin-membres.js";
 import { ecranDemandePret } from "./ecrans/demande-pret.js";
 import { ecranAdminPrets } from "./ecrans/admin-prets.js";
+import { ecranAdminNotifications } from "./ecrans/admin-notifications.js";
+import { ecranAdminTableauBord, ecranAdminStatistiques } from "./ecrans/admin-stats.js";
+import { ecranAdminPublications } from "./ecrans/admin-publications.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
 
@@ -77,14 +80,14 @@ const routes = {
   "membres/messagerie": ecranMessagerie,
   "a-propos": ecranAPropos,
   "fondateurs": ecranFondateurs,
-  "admin/tableau-de-bord": ecranProvisoire("Tableau de bord admin"),
+  "admin/tableau-de-bord": ecranAdminTableauBord,
   "admin/membres": ecranAdminMembres,
   "admin/cotisations": ecranAdminCotisations,
   "admin/tontine": ecranAdminTontine,
-  "admin/publications": ecranProvisoire("Gestion des publications"),
-  "admin/notifications": ecranProvisoire("Gestion des notifications"),
+  "admin/publications": ecranAdminPublications,
+  "admin/notifications": ecranAdminNotifications,
   "admin/prets": ecranAdminPrets,
-  "admin/statistiques": ecranProvisoire("Statistiques et rapports"),
+  "admin/statistiques": ecranAdminStatistiques,
 };
 
 export async function naviguerVers(route) {
@@ -111,4 +114,4 @@ export function initialiserRouteur() {
 
   const routeInitiale = window.location.hash.replace("#", "") || "accueil";
   naviguerVers(routeInitiale);
-}
+                                            }
