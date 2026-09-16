@@ -15,7 +15,7 @@ export async function ecranAdminMembres(conteneur) {
   const moiId = await idProfilCourant();
 
   const [{ data: membres }, { data: votesEnCours }, { data: toutesLesVoix }] = await Promise.all([
-    supabase.from("profils").select("id, nom, role, a_un_compte, telephone").order("nom"),
+    supabase.from("profils").select("id, nom, role, a_un_compte, telephone, actif").order("nom"),
     supabase.from("votes_admin").select("id, candidat_id, propose_par, cree_le").eq("statut", "en_cours"),
     supabase.from("votes_admin_voix").select("vote_id, admin_id, voix"),
   ]);
@@ -54,7 +54,7 @@ export async function ecranAdminMembres(conteneur) {
     <div id="liste-membres"></div>
   `;
 
-  rendreListeMembres(membres || [], moiId, nombreAdmins);
+  rendreListeMembres(membres || [], moiId, nombreAdmins, conteneur);
 
   document.getElementById("formulaire-nouveau-membre").addEventListener("submit", async (evenement) => {
     evenement.preventDefault();
@@ -144,18 +144,18 @@ async function evaluerVote(voteId, nombreAdmins) {
   }
 }
 
-function rendreListeMembres(membres, moiId, nombreAdmins) {
+function rendreListeMembres(membres, moiId, nombreAdmins, conteneurParent) {
   const conteneurListe = document.getElementById("liste-membres");
   conteneurListe.innerHTML = membres
     .map(
       (m) => `
-    <div class="carte" style="display:flex; align-items:center; gap:10px">
+    <div class="carte" style="display:flex; align-items:center; gap:10px; opacity:${m.actif ? "1" : "0.55"}">
       <div style="width:36px; height:36px; min-width:36px; border-radius:50%; background:var(--fond-carte-claire);
            display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--or-texte)">
         ${initiale(m.nom)}
       </div>
       <div style="flex:1">
-        <p style="margin:0; font-size:14px; font-weight:500">${m.nom} ${m.id === moiId ? "(vous)" : ""}</p>
+        <p style="margin:0; font-size:14px; font-weight:500">${m.nom} ${m.id === moiId ? "(vous)" : ""} ${!m.actif ? "— Retiré" : ""}</p>
         <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">
           ${m.telephone || "—"} ${!m.a_un_compte ? "· Sans compte" : ""}
         </p>
@@ -168,8 +168,57 @@ function rendreListeMembres(membres, moiId, nombreAdmins) {
                color:var(--texte); padding:6px 10px; font-size:12px; white-space:nowrap">Proposer admin</button>`
           : ""
       }
+      ${
+        m.id !== moiId
+          ? `<button data-basculer-actif="${m.id}" data-actif="${m.actif}" class="bouton"
+               style="background:${m.actif ? "var(--danger)" : "#4C9A6A"}; color:#fff; padding:6px 10px; font-size:12px; white-space:nowrap">
+               ${m.actif ? "Retirer" : "Réactiver"}
+             </button>`
+          : ""
+      }
+      ${
+        !m.a_un_compte
+          ? `<button data-adherer-pour="${m.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte);
+               padding:6px 10px; font-size:12px; white-space:nowrap">Adhérer cotisation</button>
+             <button data-supprimer-def="${m.id}" data-nom="${m.nom}" class="bouton-icone" aria-label="Supprimer définitivement" style="color:var(--danger)">🗑</button>`
+          : ""
+      }
     </div>
   `
     )
     .join("");
-                                                            }
+
+  conteneurListe.querySelectorAll("[data-adherer-pour]").forEach((bouton) => {
+    bouton.addEventListener("click", async () => {
+      const { error } = await supabase.from("cotisation_adhesions").insert({ membre_id: bouton.dataset.adhererPour });
+      if (error) {
+        alert(error.message.includes("duplicate") ? "Ce membre a déjà adhéré." : "Erreur : " + error.message);
+        return;
+      }
+      alert("Membre adhéré à la cotisation.");
+    });
+  });
+
+  conteneurListe.querySelectorAll("[data-supprimer-def]").forEach((bouton) => {
+    bouton.addEventListener("click", async () => {
+      if (!window.confirm(`Supprimer DÉFINITIVEMENT la fiche de ${bouton.dataset.nom} ? Cette action est irréversible. Utile seulement si cette fiche a été créée par erreur.`)) return;
+
+      const { error } = await supabase.from("profils").delete().eq("id", bouton.dataset.supprimerDef);
+      if (error) {
+        alert("Impossible de supprimer : ce membre a déjà des données liées (versements, messages...). Utilisez plutôt \"Retirer\" pour le désactiver sans perdre son historique.");
+        return;
+      }
+      ecranAdminMembres(conteneurParent);
+    });
+  });
+
+  conteneurListe.querySelectorAll("[data-basculer-actif]").forEach((bouton) => {
+    bouton.addEventListener("click", async () => {
+      const estActif = bouton.dataset.actif === "true";
+      if (estActif && !window.confirm("Retirer ce membre ? Son historique reste conservé, mais il n'apparaîtra plus dans l'annuaire ni la tontine.")) return;
+
+      await supabase.from("profils").update({ actif: !estActif }).eq("id", bouton.dataset.basculerActif);
+      ecranAdminMembres(conteneurParent);
+    });
+  });
+      }
