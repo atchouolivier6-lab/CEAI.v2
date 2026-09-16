@@ -9,6 +9,14 @@ function initiale(nom) {
   return (nom || "?").trim().charAt(0).toUpperCase();
 }
 
+function afficherMessage(texte, estErreur) {
+  const zone = document.getElementById("message-membres");
+  if (!zone) return;
+  zone.textContent = texte;
+  zone.style.color = estErreur ? "var(--danger)" : "#4C9A6A";
+  zone.hidden = false;
+}
+
 export async function ecranAdminMembres(conteneur) {
   conteneur.innerHTML = `<h2 class="titre-section">Gestion des membres</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
@@ -27,6 +35,9 @@ export async function ecranAdminMembres(conteneur) {
     <h2 class="titre-section">Gestion des membres</h2>
     <hr class="trait-or" />
 
+    <p id="message-membres" style="font-size:13px; margin:0 0 12px; padding:10px; border-radius:var(--rayon-petit);
+       background:var(--fond-carte-claire)" hidden></p>
+
     <p style="font-weight:500; margin:0 0 8px">Créer une fiche sans compte</p>
     <form id="formulaire-nouveau-membre" class="carte" style="display:flex; flex-direction:column; gap:12px">
       <label class="champ">
@@ -37,6 +48,7 @@ export async function ecranAdminMembres(conteneur) {
         <span>Téléphone</span>
         <input type="tel" name="telephone" />
       </label>
+      <p id="avertissement-doublon" style="color:var(--or-texte); font-size:13px; margin:0" hidden></p>
       <p id="erreur-nouveau-membre" style="color:var(--danger); font-size:13px; margin:0" hidden></p>
       <button type="submit" class="bouton bouton-or">Créer la fiche</button>
     </form>
@@ -56,13 +68,34 @@ export async function ecranAdminMembres(conteneur) {
 
   rendreListeMembres(membres || [], moiId, nombreAdmins, conteneur);
 
+  // --- Détection de doublon de nom pendant la saisie -----------------------
+  const champNom = document.querySelector("#formulaire-nouveau-membre input[name='nom']");
+  const avertissementDoublon = document.getElementById("avertissement-doublon");
+  champNom.addEventListener("blur", () => {
+    const nomSaisi = champNom.value.trim().toLowerCase();
+    const homonyme = nomSaisi && (membres || []).find((m) => m.nom.trim().toLowerCase() === nomSaisi);
+    if (homonyme) {
+      avertissementDoublon.textContent = `⚠️ Un membre nommé "${homonyme.nom}" existe déjà. Vérifiez qu'il ne s'agit pas d'un doublon avant de continuer.`;
+      avertissementDoublon.hidden = false;
+    } else {
+      avertissementDoublon.hidden = true;
+    }
+  });
+
   document.getElementById("formulaire-nouveau-membre").addEventListener("submit", async (evenement) => {
     evenement.preventDefault();
     const donnees = new FormData(evenement.target);
+    const nomSaisi = donnees.get("nom").trim();
     const erreur = document.getElementById("erreur-nouveau-membre");
+    erreur.hidden = true;
+
+    const homonyme = (membres || []).find((m) => m.nom.trim().toLowerCase() === nomSaisi.toLowerCase());
+    if (homonyme && !window.confirm(`Un membre nommé "${homonyme.nom}" existe déjà. Créer quand même une nouvelle fiche pour "${nomSaisi}" ?`)) {
+      return;
+    }
 
     const { error } = await supabase.from("profils").insert({
-      nom: donnees.get("nom").trim(),
+      nom: nomSaisi,
       telephone: donnees.get("telephone")?.trim() || null,
       a_un_compte: false,
       cree_par: moiId,
@@ -149,12 +182,12 @@ function rendreListeMembres(membres, moiId, nombreAdmins, conteneurParent) {
   conteneurListe.innerHTML = membres
     .map(
       (m) => `
-    <div class="carte" style="display:flex; align-items:center; gap:10px; opacity:${m.actif ? "1" : "0.55"}">
+    <div class="carte" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; opacity:${m.actif ? "1" : "0.55"}">
       <div style="width:36px; height:36px; min-width:36px; border-radius:50%; background:var(--fond-carte-claire);
            display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--or-texte)">
         ${initiale(m.nom)}
       </div>
-      <div style="flex:1">
+      <div style="flex:1; min-width:120px">
         <p style="margin:0; font-size:14px; font-weight:500">${m.nom} ${m.id === moiId ? "(vous)" : ""} ${!m.actif ? "— Retiré" : ""}</p>
         <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">
           ${m.telephone || "—"} ${!m.a_un_compte ? "· Sans compte" : ""}
@@ -192,10 +225,13 @@ function rendreListeMembres(membres, moiId, nombreAdmins, conteneurParent) {
     bouton.addEventListener("click", async () => {
       const { error } = await supabase.from("cotisation_adhesions").insert({ membre_id: bouton.dataset.adhererPour });
       if (error) {
-        alert(error.message.includes("duplicate") ? "Ce membre a déjà adhéré." : "Erreur : " + error.message);
+        afficherMessage(
+          error.message.includes("duplicate") ? "Ce membre a déjà adhéré à la cotisation." : "Erreur : " + error.message,
+          true
+        );
         return;
       }
-      alert("Membre adhéré à la cotisation.");
+      afficherMessage("Membre adhéré à la cotisation avec succès.", false);
     });
   });
 
@@ -203,11 +239,21 @@ function rendreListeMembres(membres, moiId, nombreAdmins, conteneurParent) {
     bouton.addEventListener("click", async () => {
       if (!window.confirm(`Supprimer DÉFINITIVEMENT la fiche de ${bouton.dataset.nom} ? Cette action est irréversible. Utile seulement si cette fiche a été créée par erreur.`)) return;
 
-      const { error } = await supabase.from("profils").delete().eq("id", bouton.dataset.supprimerDef);
+      const { error, count } = await supabase.from("profils").delete({ count: "exact" }).eq("id", bouton.dataset.supprimerDef);
+
       if (error) {
-        alert("Impossible de supprimer : ce membre a déjà des données liées (versements, messages...). Utilisez plutôt \"Retirer\" pour le désactiver sans perdre son historique.");
+        afficherMessage(
+          "Impossible de supprimer : ce membre a déjà des données liées (versements, messages...). Utilisez plutôt \"Retirer\" pour le désactiver sans perdre son historique. Détail : " + error.message,
+          true
+        );
         return;
       }
+      if (!count) {
+        afficherMessage("La suppression n'a rien changé — vérifiez que vous êtes bien connecté en tant qu'admin.", true);
+        return;
+      }
+
+      afficherMessage(`Fiche de ${bouton.dataset.nom} supprimée.`, false);
       ecranAdminMembres(conteneurParent);
     });
   });
@@ -221,4 +267,4 @@ function rendreListeMembres(membres, moiId, nombreAdmins, conteneurParent) {
       ecranAdminMembres(conteneurParent);
     });
   });
-      }
+}
