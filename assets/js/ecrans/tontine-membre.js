@@ -1,16 +1,11 @@
 // =========================================================
 // CEAI — Écrans "Tontine" (côté membre)
+// Plusieurs cycles peuvent être ouverts en même temps : un
+// membre peut en rejoindre plusieurs.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
-
-function badgeStatut(statut) {
-  const libelles = { en_attente: "En attente", valide: "Validé", rejete: "Rejeté" };
-  const couleurs = { en_attente: "var(--or-texte)", valide: "#4C9A6A", rejete: "var(--danger)" };
-  return `<span style="font-size:11px; color:${couleurs[statut] || "var(--texte-secondaire)"};
-          border:1px solid currentColor; padding:2px 8px; border-radius:999px">${libelles[statut] || statut}</span>`;
-}
 
 function formaterDate(dateIso) {
   return dateIso ? new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "—";
@@ -23,24 +18,12 @@ function initiale(nom) {
 async function recupererContexte() {
   const moiId = await idProfilCourant();
 
-  const { data: cycleOuvert } = await supabase
-    .from("tontine_cycles")
-    .select("id, nom, montant_mensuel")
-    .eq("statut", "ouvert")
-    .maybeSingle();
+  const [{ data: cyclesOuverts }, { data: mesParticipations }] = await Promise.all([
+    supabase.from("tontine_cycles").select("id, nom, montant_mensuel").eq("statut", "ouvert").order("demarre_le", { ascending: false }),
+    supabase.from("tontine_participants").select("id, cycle_id, ordre_tour, a_recu").eq("membre_id", moiId),
+  ]);
 
-  let participant = null;
-  if (cycleOuvert) {
-    const { data } = await supabase
-      .from("tontine_participants")
-      .select("id, ordre_tour, a_recu")
-      .eq("cycle_id", cycleOuvert.id)
-      .eq("membre_id", moiId)
-      .maybeSingle();
-    participant = data;
-  }
-
-  return { moiId, cycleOuvert, participant };
+  return { moiId, cyclesOuverts: cyclesOuverts || [], mesParticipations: mesParticipations || [] };
 }
 
 function rendreRedirectionRejoindre(conteneur, titre) {
@@ -48,7 +31,7 @@ function rendreRedirectionRejoindre(conteneur, titre) {
     <h2 class="titre-section">${titre}</h2>
     <hr class="trait-or" />
     <div class="carte">
-      <p style="margin:0">Vous devez d'abord rejoindre le cycle de tontine en cours.</p>
+      <p style="margin:0">Vous devez d'abord rejoindre un cycle de tontine en cours.</p>
       <button id="bouton-aller-rejoindre" class="bouton bouton-or" style="margin-top:12px">Rejoindre la tontine</button>
     </div>
   `;
@@ -63,9 +46,9 @@ function rendreRedirectionRejoindre(conteneur, titre) {
 export async function ecranTontineRejoindre(conteneur) {
   conteneur.innerHTML = `<h2 class="titre-section">Rejoindre la tontine</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
-  const { moiId, cycleOuvert, participant } = await recupererContexte();
+  const { moiId, cyclesOuverts, mesParticipations } = await recupererContexte();
 
-  if (!cycleOuvert) {
+  if (!cyclesOuverts.length) {
     conteneur.innerHTML = `
       <h2 class="titre-section">Rejoindre la tontine</h2>
       <hr class="trait-or" />
@@ -74,53 +57,53 @@ export async function ecranTontineRejoindre(conteneur) {
     return;
   }
 
-  if (participant) {
-    conteneur.innerHTML = `
-      <h2 class="titre-section">Rejoindre la tontine</h2>
-      <hr class="trait-or" />
-      <div class="carte">
-        <p style="margin:0">Vous participez déjà au cycle « ${cycleOuvert.nom} ».</p>
-        <p style="color:var(--texte-secondaire); font-size:13px; margin:8px 0 0">Votre position actuelle : ${participant.ordre_tour}</p>
-      </div>
-    `;
-    return;
-  }
+  const participationParCycle = Object.fromEntries(mesParticipations.map((p) => [p.cycle_id, p]));
 
   conteneur.innerHTML = `
     <h2 class="titre-section">Rejoindre la tontine</h2>
     <hr class="trait-or" />
-    <div class="carte">
-      <p style="margin:0">Cycle en cours : <strong>${cycleOuvert.nom}</strong></p>
-      <p style="color:var(--texte-secondaire); font-size:13px; margin:4px 0 12px">
-        Versement mensuel : ${Number(cycleOuvert.montant_mensuel).toLocaleString("fr-FR")} FCFA
-      </p>
-      <button id="bouton-rejoindre" class="bouton bouton-or bouton-pleine-largeur">Rejoindre ce cycle</button>
-      <p id="erreur-rejoindre" style="color:var(--danger); font-size:13px; margin-top:10px" hidden></p>
-    </div>
+    ${cyclesOuverts.map((c) => gabaritCycleARejoindre(c, participationParCycle[c.id])).join("")}
   `;
 
-  document.getElementById("bouton-rejoindre").addEventListener("click", async () => {
-    const { count } = await supabase
-      .from("tontine_participants")
-      .select("id", { count: "exact", head: true })
-      .eq("cycle_id", cycleOuvert.id);
+  conteneur.querySelectorAll("[data-rejoindre]").forEach((bouton) => {
+    bouton.addEventListener("click", async () => {
+      const cycleId = bouton.dataset.rejoindre;
+      const { count } = await supabase
+        .from("tontine_participants")
+        .select("id", { count: "exact", head: true })
+        .eq("cycle_id", cycleId);
 
-    const { error } = await supabase.from("tontine_participants").insert({
-      cycle_id: cycleOuvert.id,
-      membre_id: moiId,
-      ordre_tour: (count || 0) + 1,
+      const { error } = await supabase.from("tontine_participants").insert({
+        cycle_id: cycleId,
+        membre_id: moiId,
+        ordre_tour: (count || 0) + 1,
+      });
+
+      if (error) {
+        alert("Impossible de rejoindre ce cycle, réessayez.");
+        return;
+      }
+
+      notifier("Un nouveau membre a rejoint la tontine.");
+      ecranTontineRejoindre(conteneur);
     });
-
-    if (error) {
-      const erreur = document.getElementById("erreur-rejoindre");
-      erreur.textContent = "Impossible de rejoindre le cycle, réessayez.";
-      erreur.hidden = false;
-      return;
-    }
-
-    ecranTontineRejoindre(conteneur);
-    notifier("Un nouveau membre a rejoint la tontine.");
   });
+}
+
+function gabaritCycleARejoindre(cycle, maParticipation) {
+  return `
+    <div class="carte">
+      <p style="margin:0"><strong>${cycle.nom}</strong></p>
+      <p style="color:var(--texte-secondaire); font-size:13px; margin:4px 0 12px">
+        Versement mensuel : ${Number(cycle.montant_mensuel).toLocaleString("fr-FR")} FCFA
+      </p>
+      ${
+        maParticipation
+          ? `<p style="margin:0; font-size:13px; color:#4C9A6A">Vous participez déjà · Position ${maParticipation.ordre_tour}</p>`
+          : `<button data-rejoindre="${cycle.id}" class="bouton bouton-or">Rejoindre ce cycle</button>`
+      }
+    </div>
+  `;
 }
 
 // =========================================================
@@ -129,58 +112,62 @@ export async function ecranTontineRejoindre(conteneur) {
 export async function ecranTontineSuivi(conteneur) {
   conteneur.innerHTML = `<h2 class="titre-section">Suivi de mon cycle</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
-  const { moiId, cycleOuvert, participant } = await recupererContexte();
+  const { moiId, cyclesOuverts, mesParticipations } = await recupererContexte();
 
-  if (!cycleOuvert) {
-    conteneur.innerHTML = `
-      <h2 class="titre-section">Suivi de mon cycle</h2>
-      <hr class="trait-or" />
-      <p style="color:var(--texte-secondaire)">Aucun cycle de tontine n'est actuellement ouvert.</p>
-    `;
-    return;
-  }
+  const idsCyclesRejoints = new Set(mesParticipations.map((p) => p.cycle_id));
+  const mesCyclesOuverts = cyclesOuverts.filter((c) => idsCyclesRejoints.has(c.id));
 
-  if (!participant) {
+  if (!mesCyclesOuverts.length) {
     rendreRedirectionRejoindre(conteneur, "Suivi de mon cycle");
     return;
   }
 
-  const { data: participants } = await supabase
-    .from("tontine_participants")
-    .select("membre_id, ordre_tour, a_recu, recu_le, profils(nom, photo_url)")
-    .eq("cycle_id", cycleOuvert.id)
-    .order("ordre_tour");
+  conteneur.innerHTML = `<h2 class="titre-section">Suivi de mon cycle</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
-  const lignes = (participants || [])
-    .map((p) => {
-      const cestMoi = p.membre_id === moiId;
+  const blocs = await Promise.all(
+    mesCyclesOuverts.map(async (cycle) => {
+      const { data: participants } = await supabase
+        .from("tontine_participants")
+        .select("membre_id, ordre_tour, a_recu, recu_le, profils(nom, photo_url)")
+        .eq("cycle_id", cycle.id)
+        .order("ordre_tour");
+
+      const lignes = (participants || [])
+        .map((p) => {
+          const cestMoi = p.membre_id === moiId;
+          return `
+          <div class="carte" style="display:flex; align-items:center; gap:12px; ${cestMoi ? "border-color:var(--or)" : ""}">
+            <div style="width:32px; height:32px; min-width:32px; border-radius:50%; background:var(--fond-carte-claire); overflow:hidden;
+                 display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--or-texte)">
+              ${p.profils?.photo_url ? `<img src="${p.profils.photo_url}" alt="" style="width:100%;height:100%;object-fit:cover" />` : initiale(p.profils?.nom)}
+            </div>
+            <div style="flex:1">
+              <p style="margin:0; font-size:14px; ${cestMoi ? "font-weight:600" : ""}">${p.profils?.nom || "—"} ${cestMoi ? "(vous)" : ""}</p>
+              <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">
+                Position ${p.ordre_tour} ${p.a_recu ? "· A déjà reçu le " + formaterDate(p.recu_le) : "· En attente de réception"}
+              </p>
+            </div>
+          </div>
+        `;
+        })
+        .join("");
+
       return `
-      <div class="carte" style="display:flex; align-items:center; gap:12px; ${cestMoi ? "border-color:var(--or)" : ""}">
-        <div style="width:32px; height:32px; min-width:32px; border-radius:50%; background:var(--fond-carte-claire); overflow:hidden;
-             display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--or-texte)">
-          ${p.profils?.photo_url ? `<img src="${p.profils.photo_url}" alt="" style="width:100%;height:100%;object-fit:cover" />` : initiale(p.profils?.nom)}
-        </div>
-        <div style="flex:1">
-          <p style="margin:0; font-size:14px; ${cestMoi ? "font-weight:600" : ""}">${p.profils?.nom || "—"} ${cestMoi ? "(vous)" : ""}</p>
-          <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">
-            Position ${p.ordre_tour} ${p.a_recu ? "· A déjà reçu le " + formaterDate(p.recu_le) : "· En attente de réception"}
+        <div class="carte" style="text-align:center; background:var(--fond-carte-claire)">
+          <p style="margin:0; font-weight:500">${cycle.nom}</p>
+          <p style="color:var(--texte-secondaire); font-size:13px; margin:4px 0 0">
+            Versement mensuel : ${Number(cycle.montant_mensuel).toLocaleString("fr-FR")} FCFA
           </p>
         </div>
-      </div>
-    `;
+        ${lignes}
+      `;
     })
-    .join("");
+  );
 
   conteneur.innerHTML = `
     <h2 class="titre-section">Suivi de mon cycle</h2>
     <hr class="trait-or" />
-    <div class="carte" style="text-align:center">
-      <p style="margin:0; font-weight:500">${cycleOuvert.nom}</p>
-      <p style="color:var(--texte-secondaire); font-size:13px; margin:4px 0 0">
-        Versement mensuel : ${Number(cycleOuvert.montant_mensuel).toLocaleString("fr-FR")} FCFA
-      </p>
-    </div>
-    ${lignes}
+    ${blocs.join('<div style="height:8px"></div>')}
   `;
 }
 
@@ -190,18 +177,13 @@ export async function ecranTontineSuivi(conteneur) {
 export async function ecranTontineVerser(conteneur) {
   conteneur.innerHTML = `<h2 class="titre-section">Faire mon versement</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
-  const { cycleOuvert, participant } = await recupererContexte();
+  const { cyclesOuverts, mesParticipations } = await recupererContexte();
 
-  if (!cycleOuvert) {
-    conteneur.innerHTML = `
-      <h2 class="titre-section">Faire mon versement</h2>
-      <hr class="trait-or" />
-      <p style="color:var(--texte-secondaire)">Aucun cycle de tontine n'est actuellement ouvert.</p>
-    `;
-    return;
-  }
+  const cyclesAvecParticipation = mesParticipations
+    .map((p) => ({ participation: p, cycle: cyclesOuverts.find((c) => c.id === p.cycle_id) }))
+    .filter((x) => x.cycle);
 
-  if (!participant) {
+  if (!cyclesAvecParticipation.length) {
     rendreRedirectionRejoindre(conteneur, "Faire mon versement");
     return;
   }
@@ -209,11 +191,24 @@ export async function ecranTontineVerser(conteneur) {
   conteneur.innerHTML = `
     <h2 class="titre-section">Faire mon versement</h2>
     <hr class="trait-or" />
-    <p style="color:var(--texte-secondaire); margin-top:-8px">Cycle en cours : <strong style="color:var(--texte)">${cycleOuvert.nom}</strong></p>
     <form id="formulaire-versement-tontine" class="carte" style="display:flex; flex-direction:column; gap:16px">
+      ${
+        cyclesAvecParticipation.length > 1
+          ? `<label class="champ">
+              <span>Cycle</span>
+              <select name="participant_id" id="select-cycle-versement" required style="background:var(--fond); border:1px solid var(--bordure);
+                      border-radius:var(--rayon-petit); padding:11px 12px; color:var(--texte); font-family:inherit; font-size:15px">
+                ${cyclesAvecParticipation
+                  .map((x) => `<option value="${x.participation.id}" data-montant="${x.cycle.montant_mensuel}">${x.cycle.nom}</option>`)
+                  .join("")}
+              </select>
+            </label>`
+          : `<input type="hidden" name="participant_id" value="${cyclesAvecParticipation[0].participation.id}" />
+             <p style="color:var(--texte-secondaire); margin:-8px 0 0">Cycle : <strong style="color:var(--texte)">${cyclesAvecParticipation[0].cycle.nom}</strong></p>`
+      }
       <label class="champ">
         <span>Montant (FCFA)</span>
-        <input type="number" name="montant" min="1" step="1" required value="${cycleOuvert.montant_mensuel}" />
+        <input type="number" name="montant" min="1" step="1" required id="champ-montant-tontine" value="${cyclesAvecParticipation[0].cycle.montant_mensuel}" />
       </label>
       <label class="champ">
         <span>Date du versement</span>
@@ -225,17 +220,26 @@ export async function ecranTontineVerser(conteneur) {
     </form>
   `;
 
+  const selectCycle = document.getElementById("select-cycle-versement");
+  if (selectCycle) {
+    selectCycle.addEventListener("change", () => {
+      document.getElementById("champ-montant-tontine").value = selectCycle.selectedOptions[0].dataset.montant;
+    });
+  }
+
   document.getElementById("formulaire-versement-tontine").addEventListener("submit", async (evenement) => {
     evenement.preventDefault();
     const donnees = new FormData(evenement.target);
+    const participantId = donnees.get("participant_id");
+    const cycleId = cyclesAvecParticipation.find((x) => x.participation.id === participantId)?.cycle.id;
     const erreur = document.getElementById("erreur-versement-tontine");
     const succes = document.getElementById("succes-versement-tontine");
     erreur.hidden = true;
     succes.hidden = true;
 
     const { error } = await supabase.from("tontine_versements").insert({
-      cycle_id: cycleOuvert.id,
-      participant_id: participant.id,
+      cycle_id: cycleId,
+      participant_id: participantId,
       montant: Number(donnees.get("montant")),
       date_versement: donnees.get("date_versement"),
     });
@@ -249,4 +253,4 @@ export async function ecranTontineVerser(conteneur) {
     evenement.target.reset();
     succes.hidden = false;
   });
-                                                              }
+                            }
