@@ -292,5 +292,6 @@ export async function ecranTontineVerser(conteneur) {
 
     evenement.target.reset();
     succes.hidden = false;
+    notifier(`Un versement de tontine a été déclaré (${donnees.get("montant")} FCFA).`);
   });
-}
+    }
