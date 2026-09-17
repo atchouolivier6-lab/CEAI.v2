@@ -299,4 +299,4 @@ function gabaritVersementEnAttente(v) {
       </div>
     </div>
   `;
-        }
+                            }
