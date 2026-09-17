@@ -25,7 +25,7 @@ async function recupererContexte() {
 
   const [{ data: adhesion }, { data: sessionsOuvertes }] = await Promise.all([
     supabase.from("cotisation_adhesions").select("adhere_le").eq("membre_id", moiId).maybeSingle(),
-    supabase.from("cotisation_sessions").select("id, nom").eq("statut", "ouverte").order("ouverte_le", { ascending: false }),
+    supabase.from("cotisation_sessions").select("id, nom, montant_indicatif").eq("statut", "ouverte").order("ouverte_le", { ascending: false }),
   ]);
 
   return { moiId, adhesion, sessionsOuvertes: sessionsOuvertes || [] };
@@ -158,9 +158,9 @@ export async function ecranCotisationVerser(conteneur) {
         sessionsOuvertes.length > 1
           ? `<label class="champ">
               <span>Session</span>
-              <select name="session_id" required style="background:var(--fond); border:1px solid var(--bordure);
+              <select name="session_id" id="select-session-versement" required style="background:var(--fond); border:1px solid var(--bordure);
                       border-radius:var(--rayon-petit); padding:11px 12px; color:var(--texte); font-family:inherit; font-size:15px">
-                ${sessionsOuvertes.map((s) => `<option value="${s.id}">${s.nom}</option>`).join("")}
+                ${sessionsOuvertes.map((s) => `<option value="${s.id}" data-montant="${s.montant_indicatif || ""}">${s.nom}</option>`).join("")}
               </select>
             </label>`
           : `<input type="hidden" name="session_id" value="${sessionsOuvertes[0].id}" />
@@ -168,7 +168,7 @@ export async function ecranCotisationVerser(conteneur) {
       }
       <label class="champ">
         <span>Montant (FCFA)</span>
-        <input type="number" name="montant" min="1" step="1" required />
+        <input type="number" name="montant" min="1" step="1" required id="champ-montant-cotisation" value="${sessionsOuvertes[0].montant_indicatif || ""}" />
       </label>
       <label class="champ">
         <span>Date du versement</span>
@@ -179,6 +179,13 @@ export async function ecranCotisationVerser(conteneur) {
       <button type="submit" class="bouton bouton-or">Déclarer le versement</button>
     </form>
   `;
+
+  const selectSession = document.getElementById("select-session-versement");
+  if (selectSession) {
+    selectSession.addEventListener("change", () => {
+      document.getElementById("champ-montant-cotisation").value = selectSession.selectedOptions[0].dataset.montant;
+    });
+  }
 
   document.getElementById("formulaire-versement").addEventListener("submit", async (evenement) => {
     evenement.preventDefault();
@@ -218,4 +225,4 @@ function rendreRedirectionAdhesion(conteneur, titre) {
   document.getElementById("bouton-aller-adherer").addEventListener("click", () => {
     window.dispatchEvent(new CustomEvent("ceai:naviguer", { detail: "cotisation/adherer" }));
   });
-          }
+      }
