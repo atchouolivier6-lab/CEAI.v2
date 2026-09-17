@@ -35,21 +35,54 @@ async function ecranAccueil(conteneur) {
     <h2 class="titre-section">Accueil</h2>
     <hr class="trait-or" />
     <p style="color:var(--texte-secondaire)">Bienvenue${nom ? " " + nom : ""}.</p>
+    <p class="chargement">Chargement…</p>
+  `;
+
+  const [{ data: capital }, { data: cyclesOuverts }, { count: membresActifs }, { data: dernieresPublications }] =
+    await Promise.all([
+      supabase.from("capital_cotisation").select("total").maybeSingle(),
+      supabase.from("tontine_cycles").select("nom").eq("statut", "ouvert").order("demarre_le", { ascending: false }),
+      supabase.from("profils").select("id", { count: "exact", head: true }).eq("actif", true),
+      supabase.from("publications").select("id, texte, cree_le").order("cree_le", { ascending: false }).limit(3),
+    ]);
+
+  const texteCycle = !cyclesOuverts || !cyclesOuverts.length
+    ? "Aucun cycle en cours"
+    : cyclesOuverts.length === 1
+      ? cyclesOuverts[0].nom
+      : `${cyclesOuverts.length} cycles en cours`;
+
+  conteneur.innerHTML = `
+    <h2 class="titre-section">Accueil</h2>
+    <hr class="trait-or" />
+    <p style="color:var(--texte-secondaire)">Bienvenue${nom ? " " + nom : ""}.</p>
     <div class="carte">
       <p style="color:var(--texte-secondaire); font-size:13px; margin:0 0 4px">Capital cotisation</p>
-      <p style="font-family:var(--police-titre); font-size:28px; margin:0">—</p>
+      <p style="font-family:var(--police-titre); font-size:28px; margin:0">${Number(capital?.total || 0).toLocaleString("fr-FR")} FCFA</p>
     </div>
     <div class="carte">
       <p style="color:var(--texte-secondaire); font-size:13px; margin:0 0 4px">Cycle de tontine en cours</p>
-      <p style="margin:0">—</p>
+      <p style="margin:0">${texteCycle}</p>
     </div>
     <div class="carte">
       <p style="color:var(--texte-secondaire); font-size:13px; margin:0 0 4px">Membres actifs</p>
-      <p style="margin:0">—</p>
+      <p style="margin:0">${membresActifs || 0}</p>
     </div>
+    ${
+      dernieresPublications && dernieresPublications.length
+        ? `<p style="font-weight:500; margin:20px 0 8px">Dernières publications</p>` +
+          dernieresPublications
+            .map(
+              (p) => `
+          <div class="carte">
+            <p style="margin:0; font-size:14px">${p.texte ? p.texte.slice(0, 120) + (p.texte.length > 120 ? "…" : "") : "(média)"}</p>
+          </div>
+        `
+            )
+            .join("")
+        : ""
+    }
   `;
-  // Les tirets seront remplacés par de vraies requêtes Supabase
-  // (capital_cotisation, tontine_cycles, profils) à l'étape suivante.
 }
 
 function ecranProvisoire(titre) {
@@ -114,4 +147,4 @@ export function initialiserRouteur() {
 
   const routeInitiale = window.location.hash.replace("#", "") || "accueil";
   naviguerVers(routeInitiale);
-                                            }
+  }
