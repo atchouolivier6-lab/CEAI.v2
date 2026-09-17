@@ -221,6 +221,7 @@ export async function ecranCotisationVerser(conteneur) {
 
     evenement.target.reset();
     succes.hidden = false;
+    notifier(`Un versement de cotisation a été déclaré (${donnees.get("montant")} FCFA).`);
   });
 }
 
@@ -236,4 +237,4 @@ function rendreRedirectionAdhesion(conteneur, titre) {
   document.getElementById("bouton-aller-adherer").addEventListener("click", () => {
     window.dispatchEvent(new CustomEvent("ceai:naviguer", { detail: "cotisation/adherer" }));
   });
-    }
+}
