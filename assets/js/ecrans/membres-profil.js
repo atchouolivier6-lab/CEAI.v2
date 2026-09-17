@@ -136,6 +136,10 @@ function rendreEdition(conteneur, profil, utilisateurId) {
     <hr class="trait-or" />
     <form id="formulaire-profil" class="carte" style="display:flex; flex-direction:column; gap:16px">
       <label class="champ">
+        <span>Nom complet</span>
+        <input type="text" name="nom" value="${profil.nom || ""}" required />
+      </label>
+      <label class="champ">
         <span>Téléphone</span>
         <input type="tel" name="telephone" value="${profil.telephone || ""}" />
       </label>
@@ -165,6 +169,7 @@ function rendreEdition(conteneur, profil, utilisateurId) {
     const { error } = await supabase
       .from("profils")
       .update({
+        nom: donnees.get("nom").trim(),
         telephone: donnees.get("telephone") || null,
         bio: donnees.get("bio") || null,
       })
@@ -178,4 +183,4 @@ function rendreEdition(conteneur, profil, utilisateurId) {
 
     ecranMonProfil(conteneur);
   });
-                                            }
+}
