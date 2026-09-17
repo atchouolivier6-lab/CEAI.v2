@@ -7,6 +7,13 @@ import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
 
+function badgeStatut(statut) {
+  const libelles = { en_attente: "En attente", valide: "Validé", rejete: "Rejeté" };
+  const couleurs = { en_attente: "var(--or-texte)", valide: "#4C9A6A", rejete: "var(--danger)" };
+  return `<span style="font-size:11px; color:${couleurs[statut] || "var(--texte-secondaire)"};
+          border:1px solid currentColor; padding:2px 8px; border-radius:999px">${libelles[statut] || statut}</span>`;
+}
+
 function formaterDate(dateIso) {
   return dateIso ? new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "—";
 }
@@ -132,6 +139,13 @@ export async function ecranTontineSuivi(conteneur) {
         .eq("cycle_id", cycle.id)
         .order("ordre_tour");
 
+      const maParticipation = mesParticipations.find((p) => p.cycle_id === cycle.id);
+      const { data: mesVersements } = await supabase
+        .from("tontine_versements")
+        .select("id, montant, date_versement, statut")
+        .eq("participant_id", maParticipation.id)
+        .order("date_versement", { ascending: false });
+
       const lignes = (participants || [])
         .map((p) => {
           const cestMoi = p.membre_id === moiId;
@@ -152,6 +166,23 @@ export async function ecranTontineSuivi(conteneur) {
         })
         .join("");
 
+      const lignesVersements = (mesVersements || [])
+        .map(
+          (v) => `
+        <div class="carte" style="display:flex; justify-content:space-between; align-items:center">
+          <div>
+            <p style="margin:0; font-weight:500">${Number(v.montant).toLocaleString("fr-FR")} FCFA</p>
+            <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">${formaterDate(v.date_versement)}</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px">
+            ${badgeStatut(v.statut)}
+            ${v.statut === "en_attente" ? `<button data-supprimer-versement-tontine="${v.id}" class="bouton-icone" aria-label="Supprimer" style="color:var(--danger)">✕</button>` : ""}
+          </div>
+        </div>
+      `
+        )
+        .join("");
+
       return `
         <div class="carte" style="text-align:center; background:var(--fond-carte-claire)">
           <p style="margin:0; font-weight:500">${cycle.nom}</p>
@@ -160,6 +191,7 @@ export async function ecranTontineSuivi(conteneur) {
           </p>
         </div>
         ${lignes}
+        ${mesVersements && mesVersements.length ? `<p style="font-size:12px; color:var(--texte-secondaire); margin:10px 0 4px">Mes versements</p>${lignesVersements}` : ""}
       `;
     })
   );
@@ -169,6 +201,14 @@ export async function ecranTontineSuivi(conteneur) {
     <hr class="trait-or" />
     ${blocs.join('<div style="height:8px"></div>')}
   `;
+
+  conteneur.querySelectorAll("[data-supprimer-versement-tontine]").forEach((bouton) => {
+    bouton.addEventListener("click", async () => {
+      if (!window.confirm("Supprimer ce versement en attente ?")) return;
+      await supabase.from("tontine_versements").delete().eq("id", bouton.dataset.supprimerVersementTontine);
+      ecranTontineSuivi(conteneur);
+    });
+  });
 }
 
 // =========================================================
@@ -253,4 +293,4 @@ export async function ecranTontineVerser(conteneur) {
     evenement.target.reset();
     succes.hidden = false;
   });
-                            }
+}
