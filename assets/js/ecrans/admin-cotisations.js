@@ -19,7 +19,7 @@ async function rafraichir(conteneur) {
   const moiId = await idProfilCourant();
 
   const [{ data: sessions }, { data: versements }] = await Promise.all([
-    supabase.from("cotisation_sessions").select("id, nom, statut, ouverte_le, cloturee_le").order("ouverte_le", { ascending: false }),
+    supabase.from("cotisation_sessions").select("id, nom, statut, ouverte_le, cloturee_le, montant_indicatif").order("ouverte_le", { ascending: false }),
     supabase.from("cotisation_versements").select("id, session_id, montant, date_versement, statut, profils(nom)"),
   ]);
 
@@ -40,16 +40,26 @@ async function rafraichir(conteneur) {
           <span>Nom de la session (ex: Janvier 2026)</span>
           <input type="text" name="nom" required />
         </label>
+        <label class="champ">
+          <span>Montant indicatif (FCFA, facultatif)</span>
+          <input type="number" name="montant_indicatif" min="1" />
+        </label>
         <p id="erreur-ouverture" style="color:var(--danger); font-size:13px; margin:0" hidden></p>
         <button type="submit" class="bouton bouton-or">Ouvrir la session</button>
       </form>
     `;
     document.getElementById("formulaire-ouverture-session").addEventListener("submit", async (evenement) => {
       evenement.preventDefault();
-      const nom = new FormData(evenement.target).get("nom").trim();
+      const donnees = new FormData(evenement.target);
+      const nom = donnees.get("nom").trim();
+      const montantIndicatif = donnees.get("montant_indicatif");
       const erreur = document.getElementById("erreur-ouverture");
 
-      const { error } = await supabase.from("cotisation_sessions").insert({ nom, ouverte_par: moiId });
+      const { error } = await supabase.from("cotisation_sessions").insert({
+        nom,
+        ouverte_par: moiId,
+        montant_indicatif: montantIndicatif ? Number(montantIndicatif) : null,
+      });
       if (error) {
         erreur.textContent = "Erreur : " + error.message;
         erreur.hidden = false;
@@ -80,6 +90,7 @@ async function rafraichir(conteneur) {
             <p style="margin:0; font-weight:500">${s.nom}</p>
             <p style="margin:4px 0 0; font-size:12px; color:var(--texte-secondaire)">
               Ouverte le ${formaterDate(s.ouverte_le)}${s.cloturee_le ? " · Clôturée le " + formaterDate(s.cloturee_le) : ""} · ${totalValide.toLocaleString("fr-FR")} FCFA validés
+              ${s.montant_indicatif ? ` · Indicatif : ${Number(s.montant_indicatif).toLocaleString("fr-FR")} FCFA` : ""}
             </p>
           </div>
           <span style="font-size:11px; color:${estOuverte ? "#4C9A6A" : "var(--texte-secondaire)"}; border:1px solid currentColor; padding:2px 8px; border-radius:999px; white-space:nowrap">
