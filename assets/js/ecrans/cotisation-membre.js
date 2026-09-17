@@ -91,7 +91,7 @@ export async function ecranCotisationSuivi(conteneur) {
 
   const { data: versements } = await supabase
     .from("cotisation_versements")
-    .select("montant, date_versement, statut, cotisation_sessions(nom)")
+    .select("id, montant, date_versement, statut, cotisation_sessions(nom)")
     .eq("membre_id", moiId)
     .order("date_versement", { ascending: false });
 
@@ -109,7 +109,10 @@ export async function ecranCotisationSuivi(conteneur) {
           ${formaterDate(v.date_versement)} · ${v.cotisation_sessions?.nom || "—"}
         </p>
       </div>
-      ${badgeStatut(v.statut)}
+      <div style="display:flex; align-items:center; gap:8px">
+        ${badgeStatut(v.statut)}
+        ${v.statut === "en_attente" ? `<button data-supprimer-versement="${v.id}" class="bouton-icone" aria-label="Supprimer" style="color:var(--danger)">✕</button>` : ""}
+      </div>
     </div>
   `
     )
@@ -124,6 +127,14 @@ export async function ecranCotisationSuivi(conteneur) {
     </div>
     ${versements && versements.length ? lignes : `<p style="color:var(--texte-secondaire)">Aucun versement déclaré pour le moment.</p>`}
   `;
+
+  conteneur.querySelectorAll("[data-supprimer-versement]").forEach((bouton) => {
+    bouton.addEventListener("click", async () => {
+      if (!window.confirm("Supprimer ce versement en attente ?")) return;
+      await supabase.from("cotisation_versements").delete().eq("id", bouton.dataset.supprimerVersement);
+      ecranCotisationSuivi(conteneur);
+    });
+  });
 }
 
 // =========================================================
@@ -225,4 +236,4 @@ function rendreRedirectionAdhesion(conteneur, titre) {
   document.getElementById("bouton-aller-adherer").addEventListener("click", () => {
     window.dispatchEvent(new CustomEvent("ceai:naviguer", { detail: "cotisation/adherer" }));
   });
-      }
+    }
