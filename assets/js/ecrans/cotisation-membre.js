@@ -23,12 +23,12 @@ function formaterDate(dateIso) {
 async function recupererContexte() {
   const moiId = await idProfilCourant();
 
-  const [{ data: adhesion }, { data: sessionOuverte }] = await Promise.all([
+  const [{ data: adhesion }, { data: sessionsOuvertes }] = await Promise.all([
     supabase.from("cotisation_adhesions").select("adhere_le").eq("membre_id", moiId).maybeSingle(),
-    supabase.from("cotisation_sessions").select("id, nom").eq("statut", "ouverte").maybeSingle(),
+    supabase.from("cotisation_sessions").select("id, nom").eq("statut", "ouverte").order("ouverte_le", { ascending: false }),
   ]);
 
-  return { moiId, adhesion, sessionOuverte };
+  return { moiId, adhesion, sessionsOuvertes: sessionsOuvertes || [] };
 }
 
 // =========================================================
@@ -132,14 +132,14 @@ export async function ecranCotisationSuivi(conteneur) {
 export async function ecranCotisationVerser(conteneur) {
   conteneur.innerHTML = `<h2 class="titre-section">Faire mon versement</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
-  const { moiId, adhesion, sessionOuverte } = await recupererContexte();
+  const { moiId, adhesion, sessionsOuvertes } = await recupererContexte();
 
   if (!adhesion) {
     rendreRedirectionAdhesion(conteneur, "Faire mon versement");
     return;
   }
 
-  if (!sessionOuverte) {
+  if (!sessionsOuvertes.length) {
     conteneur.innerHTML = `
       <h2 class="titre-section">Faire mon versement</h2>
       <hr class="trait-or" />
@@ -153,8 +153,19 @@ export async function ecranCotisationVerser(conteneur) {
   conteneur.innerHTML = `
     <h2 class="titre-section">Faire mon versement</h2>
     <hr class="trait-or" />
-    <p style="color:var(--texte-secondaire); margin-top:-8px">Session en cours : <strong style="color:var(--texte)">${sessionOuverte.nom}</strong></p>
     <form id="formulaire-versement" class="carte" style="display:flex; flex-direction:column; gap:16px">
+      ${
+        sessionsOuvertes.length > 1
+          ? `<label class="champ">
+              <span>Session</span>
+              <select name="session_id" required style="background:var(--fond); border:1px solid var(--bordure);
+                      border-radius:var(--rayon-petit); padding:11px 12px; color:var(--texte); font-family:inherit; font-size:15px">
+                ${sessionsOuvertes.map((s) => `<option value="${s.id}">${s.nom}</option>`).join("")}
+              </select>
+            </label>`
+          : `<input type="hidden" name="session_id" value="${sessionsOuvertes[0].id}" />
+             <p style="color:var(--texte-secondaire); margin:-8px 0 0">Session en cours : <strong style="color:var(--texte)">${sessionsOuvertes[0].nom}</strong></p>`
+      }
       <label class="champ">
         <span>Montant (FCFA)</span>
         <input type="number" name="montant" min="1" step="1" required />
@@ -178,7 +189,7 @@ export async function ecranCotisationVerser(conteneur) {
     succes.hidden = true;
 
     const { error } = await supabase.from("cotisation_versements").insert({
-      session_id: sessionOuverte.id,
+      session_id: donnees.get("session_id"),
       membre_id: moiId,
       montant: Number(donnees.get("montant")),
       date_versement: donnees.get("date_versement"),
@@ -207,4 +218,4 @@ function rendreRedirectionAdhesion(conteneur, titre) {
   document.getElementById("bouton-aller-adherer").addEventListener("click", () => {
     window.dispatchEvent(new CustomEvent("ceai:naviguer", { detail: "cotisation/adherer" }));
   });
-  }
+          }
