@@ -75,6 +75,9 @@ export async function ecranTontineRejoindre(conteneur) {
   conteneur.querySelectorAll("[data-rejoindre]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
       const cycleId = bouton.dataset.rejoindre;
+      const nomCycle = cyclesOuverts.find((c) => c.id === cycleId)?.nom || "";
+      if (!window.confirm(`Confirmer votre participation au cycle "${nomCycle}" ?`)) return;
+
       const { count } = await supabase
         .from("tontine_participants")
         .select("id", { count: "exact", head: true })
@@ -176,7 +179,7 @@ export async function ecranTontineSuivi(conteneur) {
           </div>
           <div style="display:flex; align-items:center; gap:8px">
             ${badgeStatut(v.statut)}
-            ${v.statut === "en_attente" ? `<button data-supprimer-versement-tontine="${v.id}" class="bouton-icone" aria-label="Supprimer" style="color:var(--danger)">✕</button>` : ""}
+            ${v.statut !== "valide" ? `<button data-supprimer-versement-tontine="${v.id}" class="bouton-icone" aria-label="Supprimer" style="color:var(--danger)">✕</button>` : ""}
           </div>
         </div>
       `
@@ -294,4 +297,4 @@ export async function ecranTontineVerser(conteneur) {
     succes.hidden = false;
     notifier(`Un versement de tontine a été déclaré (${donnees.get("montant")} FCFA).`);
   });
-    }
+      }
