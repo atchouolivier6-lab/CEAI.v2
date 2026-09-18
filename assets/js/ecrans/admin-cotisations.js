@@ -18,10 +18,14 @@ export async function ecranAdminCotisations(conteneur) {
 async function rafraichir(conteneur) {
   const moiId = await idProfilCourant();
 
-  const [{ data: sessions }, { data: versements }] = await Promise.all([
+  const [{ data: sessions }, { data: versements }, { data: adhesions }, { data: membres }] = await Promise.all([
     supabase.from("cotisation_sessions").select("id, nom, statut, ouverte_le, cloturee_le, montant_indicatif").order("ouverte_le", { ascending: false }),
-    supabase.from("cotisation_versements").select("id, session_id, montant, date_versement, statut, profils(nom)"),
+    supabase.from("cotisation_versements").select("id, session_id, membre_id, montant, date_versement, statut"),
+    supabase.from("cotisation_adhesions").select("session_id, membre_id").not("session_id", "is", null),
+    supabase.from("profils").select("id, nom").eq("actif", true),
   ]);
+
+  const nomParId = Object.fromEntries((membres || []).map((m) => [m.id, m.nom]));
 
   conteneur.innerHTML = `
     <h2 class="titre-section">Gestion des cotisations</h2>
@@ -81,6 +85,7 @@ async function rafraichir(conteneur) {
       const versementsSession = (versements || []).filter((v) => v.session_id === s.id);
       const totalValide = versementsSession.filter((v) => v.statut === "valide").reduce((sum, v) => sum + Number(v.montant), 0);
       const enAttente = versementsSession.filter((v) => v.statut === "en_attente");
+      const adherentsSession = (adhesions || []).filter((a) => a.session_id === s.id);
       const estOuverte = s.statut === "ouverte";
 
       return `
@@ -99,6 +104,9 @@ async function rafraichir(conteneur) {
         </div>
 
         <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap">
+          <button data-basculer-adherents="${s.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:6px 12px; font-size:13px">
+            Adhérents (${adherentsSession.length})
+          </button>
           ${
             estOuverte
               ? `<button data-basculer-liste="${s.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:6px 12px; font-size:13px">
@@ -112,10 +120,18 @@ async function rafraichir(conteneur) {
           </button>
         </div>
 
+        <div data-liste-adherents="${s.id}" hidden style="margin-top:12px; display:flex; flex-direction:column; gap:6px">
+          ${
+            adherentsSession.length
+              ? adherentsSession.map((a) => `<p style="margin:0; font-size:13px; padding:6px 0; border-top:1px solid var(--bordure)">${nomParId[a.membre_id] || "—"}</p>`).join("")
+              : `<p style="color:var(--texte-secondaire); font-size:13px">Aucun adhérent pour le moment.</p>`
+          }
+        </div>
+
         <div data-liste-versements="${s.id}" hidden style="margin-top:12px; display:flex; flex-direction:column; gap:8px">
           ${
             enAttente.length
-              ? enAttente.map((v) => gabaritVersementEnAttente(v)).join("")
+              ? enAttente.map((v) => gabaritVersementEnAttente(v, nomParId)).join("")
               : `<p style="color:var(--texte-secondaire); font-size:13px">Aucun versement en attente.</p>`
           }
         </div>
@@ -123,6 +139,13 @@ async function rafraichir(conteneur) {
     `;
     })
     .join("");
+
+  listeSessions.querySelectorAll("[data-basculer-adherents]").forEach((bouton) => {
+    bouton.addEventListener("click", () => {
+      const zone = listeSessions.querySelector(`[data-liste-adherents="${bouton.dataset.basculerAdherents}"]`);
+      zone.hidden = !zone.hidden;
+    });
+  });
 
   listeSessions.querySelectorAll("[data-basculer-liste]").forEach((bouton) => {
     bouton.addEventListener("click", () => {
@@ -176,11 +199,11 @@ async function rafraichir(conteneur) {
   });
 }
 
-function gabaritVersementEnAttente(v) {
+function gabaritVersementEnAttente(v, nomParId) {
   return `
     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--bordure)">
       <div>
-        <p style="margin:0; font-weight:500; font-size:14px">${v.profils?.nom || "—"}</p>
+        <p style="margin:0; font-weight:500; font-size:14px">${nomParId[v.membre_id] || "—"}</p>
         <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">
           ${Number(v.montant).toLocaleString("fr-FR")} FCFA · ${new Date(v.date_versement).toLocaleDateString("fr-FR")}
         </p>
@@ -191,4 +214,4 @@ function gabaritVersementEnAttente(v) {
       </div>
     </div>
   `;
-        }
+    }
