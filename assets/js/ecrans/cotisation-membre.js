@@ -1,5 +1,8 @@
 // =========================================================
 // CEAI — Écrans "Cotisation" (côté membre)
+// L'adhésion se fait désormais par session (comme rejoindre un
+// cycle de tontine) : un membre choisit à quelle(s) session(s)
+// il adhère, plusieurs sessions pouvant être ouvertes ensemble.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
@@ -23,12 +26,26 @@ function formaterDate(dateIso) {
 async function recupererContexte() {
   const moiId = await idProfilCourant();
 
-  const [{ data: adhesion }, { data: sessionsOuvertes }] = await Promise.all([
-    supabase.from("cotisation_adhesions").select("adhere_le").eq("membre_id", moiId).maybeSingle(),
+  const [{ data: sessionsOuvertes }, { data: mesAdhesions }] = await Promise.all([
     supabase.from("cotisation_sessions").select("id, nom, montant_indicatif").eq("statut", "ouverte").order("ouverte_le", { ascending: false }),
+    supabase.from("cotisation_adhesions").select("session_id").eq("membre_id", moiId).not("session_id", "is", null),
   ]);
 
-  return { moiId, adhesion, sessionsOuvertes: sessionsOuvertes || [] };
+  return { moiId, sessionsOuvertes: sessionsOuvertes || [], mesAdhesions: mesAdhesions || [] };
+}
+
+function rendreRedirectionAdhesion(conteneur, titre) {
+  conteneur.innerHTML = `
+    <h2 class="titre-section">${titre}</h2>
+    <hr class="trait-or" />
+    <div class="carte">
+      <p style="margin:0">Vous devez d'abord adhérer à une session de cotisation.</p>
+      <button id="bouton-aller-adherer" class="bouton bouton-or" style="margin-top:12px">Adhérer à la cotisation</button>
+    </div>
+  `;
+  document.getElementById("bouton-aller-adherer").addEventListener("click", () => {
+    window.dispatchEvent(new CustomEvent("ceai:naviguer", { detail: "cotisation/adherer" }));
+  });
 }
 
 // =========================================================
@@ -37,43 +54,58 @@ async function recupererContexte() {
 export async function ecranCotisationAdherer(conteneur) {
   conteneur.innerHTML = `<h2 class="titre-section">Adhérer à la cotisation</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
-  const { moiId, adhesion } = await recupererContexte();
+  const { moiId, sessionsOuvertes, mesAdhesions } = await recupererContexte();
 
-  if (adhesion) {
+  if (!sessionsOuvertes.length) {
     conteneur.innerHTML = `
       <h2 class="titre-section">Adhérer à la cotisation</h2>
       <hr class="trait-or" />
-      <div class="carte">
-        <p style="margin:0">Vous êtes déjà adhérent à la cotisation.</p>
-        <p style="color:var(--texte-secondaire); font-size:13px; margin:8px 0 0">Depuis le ${formaterDate(adhesion.adhere_le)}</p>
-      </div>
+      <p style="color:var(--texte-secondaire)">Aucune session de cotisation n'est actuellement ouverte.</p>
     `;
     return;
   }
 
+  const idsAdheres = new Set(mesAdhesions.map((a) => a.session_id));
+
   conteneur.innerHTML = `
     <h2 class="titre-section">Adhérer à la cotisation</h2>
     <hr class="trait-or" />
-    <div class="carte">
-      <p style="color:var(--texte-secondaire)">
-        En adhérant, vous rejoignez la cotisation collective de CEAI et pourrez déclarer vos versements.
-      </p>
-      <button id="bouton-adherer" class="bouton bouton-or bouton-pleine-largeur" style="margin-top:12px">Adhérer maintenant</button>
-      <p id="erreur-adhesion" style="color:var(--danger); font-size:13px; margin-top:10px" hidden></p>
-    </div>
+    ${sessionsOuvertes.map((s) => gabaritSessionAAdherer(s, idsAdheres.has(s.id))).join("")}
   `;
 
-  document.getElementById("bouton-adherer").addEventListener("click", async () => {
-    const { error } = await supabase.from("cotisation_adhesions").insert({ membre_id: moiId });
-    if (error) {
-      const erreur = document.getElementById("erreur-adhesion");
-      erreur.textContent = "Erreur : " + error.message;
-      erreur.hidden = false;
-      return;
-    }
-    ecranCotisationAdherer(conteneur);
-    notifier("Un nouveau membre a rejoint la cotisation.");
+  conteneur.querySelectorAll("[data-adherer]").forEach((bouton) => {
+    bouton.addEventListener("click", async () => {
+      const session = sessionsOuvertes.find((s) => s.id === bouton.dataset.adherer);
+      if (!window.confirm(`Confirmer votre adhésion à la session "${session.nom}" ?`)) return;
+
+      const { error } = await supabase.from("cotisation_adhesions").insert({
+        membre_id: moiId,
+        session_id: session.id,
+      });
+
+      if (error) {
+        alert("Erreur : " + error.message);
+        return;
+      }
+
+      notifier(`Un nouveau membre a adhéré à la session "${session.nom}".`);
+      ecranCotisationAdherer(conteneur);
+    });
   });
+}
+
+function gabaritSessionAAdherer(session, dejaAdhere) {
+  return `
+    <div class="carte">
+      <p style="margin:0"><strong>${session.nom}</strong></p>
+      ${session.montant_indicatif ? `<p style="color:var(--texte-secondaire); font-size:13px; margin:4px 0 12px">Montant indicatif : ${Number(session.montant_indicatif).toLocaleString("fr-FR")} FCFA</p>` : `<div style="margin-bottom:12px"></div>`}
+      ${
+        dejaAdhere
+          ? `<p style="margin:0; font-size:13px; color:#4C9A6A">Vous avez déjà adhéré à cette session</p>`
+          : `<button data-adherer="${session.id}" class="bouton bouton-or">Adhérer à cette session</button>`
+      }
+    </div>
+  `;
 }
 
 // =========================================================
@@ -82,12 +114,7 @@ export async function ecranCotisationAdherer(conteneur) {
 export async function ecranCotisationSuivi(conteneur) {
   conteneur.innerHTML = `<h2 class="titre-section">Suivi de mes cotisations</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
-  const { moiId, adhesion } = await recupererContexte();
-
-  if (!adhesion) {
-    rendreRedirectionAdhesion(conteneur, "Suivi de mes cotisations");
-    return;
-  }
+  const moiId = await idProfilCourant();
 
   const { data: versements } = await supabase
     .from("cotisation_versements")
@@ -111,7 +138,7 @@ export async function ecranCotisationSuivi(conteneur) {
       </div>
       <div style="display:flex; align-items:center; gap:8px">
         ${badgeStatut(v.statut)}
-        ${v.statut === "en_attente" ? `<button data-supprimer-versement="${v.id}" class="bouton-icone" aria-label="Supprimer" style="color:var(--danger)">✕</button>` : ""}
+        ${v.statut !== "valide" ? `<button data-supprimer-versement="${v.id}" class="bouton-icone" aria-label="Supprimer" style="color:var(--danger)">✕</button>` : ""}
       </div>
     </div>
   `
@@ -130,7 +157,7 @@ export async function ecranCotisationSuivi(conteneur) {
 
   conteneur.querySelectorAll("[data-supprimer-versement]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
-      if (!window.confirm("Supprimer ce versement en attente ?")) return;
+      if (!window.confirm("Supprimer ce versement ?")) return;
       await supabase.from("cotisation_versements").delete().eq("id", bouton.dataset.supprimerVersement);
       ecranCotisationSuivi(conteneur);
     });
@@ -143,21 +170,13 @@ export async function ecranCotisationSuivi(conteneur) {
 export async function ecranCotisationVerser(conteneur) {
   conteneur.innerHTML = `<h2 class="titre-section">Faire mon versement</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
-  const { moiId, adhesion, sessionsOuvertes } = await recupererContexte();
+  const { moiId, sessionsOuvertes, mesAdhesions } = await recupererContexte();
 
-  if (!adhesion) {
+  const idsAdheres = new Set(mesAdhesions.map((a) => a.session_id));
+  const sessionsAdherees = sessionsOuvertes.filter((s) => idsAdheres.has(s.id));
+
+  if (!sessionsAdherees.length) {
     rendreRedirectionAdhesion(conteneur, "Faire mon versement");
-    return;
-  }
-
-  if (!sessionsOuvertes.length) {
-    conteneur.innerHTML = `
-      <h2 class="titre-section">Faire mon versement</h2>
-      <hr class="trait-or" />
-      <div class="carte">
-        <p style="margin:0; color:var(--texte-secondaire)">Aucune session de cotisation n'est ouverte actuellement. Revenez lorsqu'une nouvelle session aura démarré.</p>
-      </div>
-    `;
     return;
   }
 
@@ -166,20 +185,20 @@ export async function ecranCotisationVerser(conteneur) {
     <hr class="trait-or" />
     <form id="formulaire-versement" class="carte" style="display:flex; flex-direction:column; gap:16px">
       ${
-        sessionsOuvertes.length > 1
+        sessionsAdherees.length > 1
           ? `<label class="champ">
               <span>Session</span>
               <select name="session_id" id="select-session-versement" required style="background:var(--fond); border:1px solid var(--bordure);
                       border-radius:var(--rayon-petit); padding:11px 12px; color:var(--texte); font-family:inherit; font-size:15px">
-                ${sessionsOuvertes.map((s) => `<option value="${s.id}" data-montant="${s.montant_indicatif || ""}">${s.nom}</option>`).join("")}
+                ${sessionsAdherees.map((s) => `<option value="${s.id}" data-montant="${s.montant_indicatif || ""}">${s.nom}</option>`).join("")}
               </select>
             </label>`
-          : `<input type="hidden" name="session_id" value="${sessionsOuvertes[0].id}" />
-             <p style="color:var(--texte-secondaire); margin:-8px 0 0">Session en cours : <strong style="color:var(--texte)">${sessionsOuvertes[0].nom}</strong></p>`
+          : `<input type="hidden" name="session_id" value="${sessionsAdherees[0].id}" />
+             <p style="color:var(--texte-secondaire); margin:-8px 0 0">Session en cours : <strong style="color:var(--texte)">${sessionsAdherees[0].nom}</strong></p>`
       }
       <label class="champ">
         <span>Montant (FCFA)</span>
-        <input type="number" name="montant" min="1" step="1" required id="champ-montant-cotisation" value="${sessionsOuvertes[0].montant_indicatif || ""}" />
+        <input type="number" name="montant" min="1" step="1" required id="champ-montant-cotisation" value="${sessionsAdherees[0].montant_indicatif || ""}" />
       </label>
       <label class="champ">
         <span>Date du versement</span>
@@ -223,18 +242,4 @@ export async function ecranCotisationVerser(conteneur) {
     succes.hidden = false;
     notifier(`Un versement de cotisation a été déclaré (${donnees.get("montant")} FCFA).`);
   });
-}
-
-function rendreRedirectionAdhesion(conteneur, titre) {
-  conteneur.innerHTML = `
-    <h2 class="titre-section">${titre}</h2>
-    <hr class="trait-or" />
-    <div class="carte">
-      <p style="margin:0">Vous devez d'abord adhérer à la cotisation.</p>
-      <button id="bouton-aller-adherer" class="bouton bouton-or" style="margin-top:12px">Adhérer à la cotisation</button>
-    </div>
-  `;
-  document.getElementById("bouton-aller-adherer").addEventListener("click", () => {
-    window.dispatchEvent(new CustomEvent("ceai:naviguer", { detail: "cotisation/adherer" }));
-  });
-}
+          }
