@@ -121,6 +121,14 @@ export async function ecranDemandePret(conteneur) {
 
     zoneOnglet.innerHTML = demandes.map((d) => gabaritDemande(d, remboursements || [])).join("");
 
+    zoneOnglet.querySelectorAll("[data-supprimer-demande]").forEach((bouton) => {
+      bouton.addEventListener("click", async () => {
+        if (!window.confirm("Supprimer cette demande en attente ?")) return;
+        await supabase.from("prets_demandes").delete().eq("id", bouton.dataset.supprimerDemande);
+        rendreMesDemandes();
+      });
+    });
+
     zoneOnglet.querySelectorAll("[data-supprimer-remb]").forEach((bouton) => {
       bouton.addEventListener("click", async () => {
         if (!window.confirm("Supprimer ce remboursement ?")) return;
@@ -163,7 +171,10 @@ export async function ecranDemandePret(conteneur) {
             <p style="margin:0; font-weight:500">${Number(d.montant).toLocaleString("fr-FR")} FCFA</p>
             <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">${formaterDate(d.cree_le)}</p>
           </div>
-          ${d.solde ? `<span style="font-size:11px; color:#4C9A6A; border:1px solid currentColor; padding:2px 8px; border-radius:999px">Soldé</span>` : badgeStatut(d.statut)}
+          <div style="display:flex; align-items:center; gap:8px">
+            ${d.solde ? `<span style="font-size:11px; color:#4C9A6A; border:1px solid currentColor; padding:2px 8px; border-radius:999px">Soldé</span>` : badgeStatut(d.statut)}
+            ${d.statut === "en_attente" ? `<button data-supprimer-demande="${d.id}" class="bouton-icone" aria-label="Supprimer" style="color:var(--danger)">✕</button>` : ""}
+          </div>
         </div>
         ${d.motif ? `<p style="margin:10px 0 0; font-size:13px; color:var(--texte-secondaire)">Motif : ${d.motif}</p>` : ""}
         ${d.duree_souhaitee ? `<p style="margin:4px 0 0; font-size:13px; color:var(--texte-secondaire)">Durée souhaitée : ${d.duree_souhaitee}</p>` : ""}
@@ -211,4 +222,4 @@ export async function ecranDemandePret(conteneur) {
   }
 
   rendreFormulaire();
-      }
+        }
