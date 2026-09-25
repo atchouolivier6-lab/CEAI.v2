@@ -48,10 +48,15 @@ export async function ecranAdminPrets(conteneur) {
   async function rendreDemandes() {
     zoneOnglet.innerHTML = `<p class="chargement">Chargement…</p>`;
 
-    const { data: demandes } = await supabase
+    const { data: demandes, error } = await supabase
       .from("prets_demandes")
-      .select("id, montant, motif, duree_souhaitee, statut, reponse_admin, cree_le, profils(nom)")
+      .select("id, montant, motif, duree_souhaitee, statut, reponse_admin, cree_le, profils!prets_demandes_membre_id_fkey(nom)")
       .order("cree_le", { ascending: false });
+
+    if (error) {
+      zoneOnglet.innerHTML = `<p style="color:var(--danger)">Erreur : ${error.message}</p>`;
+      return;
+    }
 
     if (!demandes || !demandes.length) {
       zoneOnglet.innerHTML = `<p style="color:var(--texte-secondaire)">Aucune demande de prêt pour le moment.</p>`;
@@ -118,12 +123,17 @@ export async function ecranAdminPrets(conteneur) {
   async function rendrePretsEnCours() {
     zoneOnglet.innerHTML = `<p class="chargement">Chargement…</p>`;
 
-    const { data: prets } = await supabase
+    const { data: prets, error } = await supabase
       .from("prets_demandes")
-      .select("id, montant, date_octroi, profils(nom)")
+      .select("id, montant, date_octroi, profils!prets_demandes_membre_id_fkey(nom)")
       .eq("statut", "acceptee")
       .eq("solde", false)
       .order("date_octroi");
+
+    if (error) {
+      zoneOnglet.innerHTML = `<p style="color:var(--danger)">Erreur : ${error.message}</p>`;
+      return;
+    }
 
     if (!prets || !prets.length) {
       zoneOnglet.innerHTML = `<p style="color:var(--texte-secondaire)">Aucun prêt en cours pour le moment.</p>`;
@@ -268,4 +278,4 @@ export async function ecranAdminPrets(conteneur) {
   }
 
   rendreDemandes();
-          }
+        }
