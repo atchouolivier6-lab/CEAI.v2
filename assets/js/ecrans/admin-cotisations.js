@@ -1,6 +1,8 @@
 // =========================================================
 // CEAI — Écran admin "Gestion des cotisations"
 // Plusieurs sessions peuvent être ouvertes en même temps.
+// Une session clôturée disparaît de cet écran et n'est plus
+// visible que dans les Archives de cotisation.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
@@ -19,7 +21,11 @@ async function rafraichir(conteneur) {
   const moiId = await idProfilCourant();
 
   const [{ data: sessions }, { data: versements }, { data: adhesions }, { data: membres }] = await Promise.all([
-    supabase.from("cotisation_sessions").select("id, nom, statut, ouverte_le, cloturee_le, montant_indicatif").order("ouverte_le", { ascending: false }),
+    supabase
+      .from("cotisation_sessions")
+      .select("id, nom, statut, ouverte_le, cloturee_le, montant_indicatif")
+      .eq("statut", "ouverte")
+      .order("ouverte_le", { ascending: false }),
     supabase.from("cotisation_versements").select("id, session_id, membre_id, montant, date_versement, statut"),
     supabase.from("cotisation_adhesions").select("session_id, membre_id").not("session_id", "is", null),
     supabase.from("profils").select("id, nom").eq("actif", true),
@@ -76,7 +82,7 @@ async function rafraichir(conteneur) {
 
   const listeSessions = document.getElementById("liste-sessions");
   if (!sessions || !sessions.length) {
-    listeSessions.innerHTML = `<p style="color:var(--texte-secondaire)">Aucune session pour le moment.</p>`;
+    listeSessions.innerHTML = `<p style="color:var(--texte-secondaire)">Aucune session ouverte pour le moment. Les sessions clôturées se trouvent dans les Archives.</p>`;
     return;
   }
 
@@ -86,7 +92,6 @@ async function rafraichir(conteneur) {
       const totalValide = versementsSession.filter((v) => v.statut === "valide").reduce((sum, v) => sum + Number(v.montant), 0);
       const enAttente = versementsSession.filter((v) => v.statut === "en_attente");
       const adherentsSession = (adhesions || []).filter((a) => a.session_id === s.id);
-      const estOuverte = s.statut === "ouverte";
 
       return `
       <div class="carte">
@@ -94,12 +99,12 @@ async function rafraichir(conteneur) {
           <div>
             <p style="margin:0; font-weight:500">${s.nom}</p>
             <p style="margin:4px 0 0; font-size:12px; color:var(--texte-secondaire)">
-              Ouverte le ${formaterDate(s.ouverte_le)}${s.cloturee_le ? " · Clôturée le " + formaterDate(s.cloturee_le) : ""} · ${totalValide.toLocaleString("fr-FR")} FCFA validés
+              Ouverte le ${formaterDate(s.ouverte_le)} · ${totalValide.toLocaleString("fr-FR")} FCFA validés
               ${s.montant_indicatif ? ` · Indicatif : ${Number(s.montant_indicatif).toLocaleString("fr-FR")} FCFA` : ""}
             </p>
           </div>
-          <span style="font-size:11px; color:${estOuverte ? "#4C9A6A" : "var(--texte-secondaire)"}; border:1px solid currentColor; padding:2px 8px; border-radius:999px; white-space:nowrap">
-            ${estOuverte ? "Ouverte" : "Clôturée"}
+          <span style="font-size:11px; color:#4C9A6A; border:1px solid currentColor; padding:2px 8px; border-radius:999px; white-space:nowrap">
+            Ouverte
           </span>
         </div>
 
@@ -107,14 +112,10 @@ async function rafraichir(conteneur) {
           <button data-basculer-adherents="${s.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:6px 12px; font-size:13px">
             Adhérents (${adherentsSession.length})
           </button>
-          ${
-            estOuverte
-              ? `<button data-basculer-liste="${s.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:6px 12px; font-size:13px">
-                   Versements en attente (${enAttente.length})
-                 </button>
-                 <button data-cloturer="${s.id}" data-nom="${s.nom}" class="bouton" style="background:var(--danger); color:#fff; padding:6px 12px; font-size:13px">Clôturer</button>`
-              : ""
-          }
+          <button data-basculer-liste="${s.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:6px 12px; font-size:13px">
+            Versements en attente (${enAttente.length})
+          </button>
+          <button data-cloturer="${s.id}" data-nom="${s.nom}" class="bouton" style="background:var(--danger); color:#fff; padding:6px 12px; font-size:13px">Clôturer</button>
           <button data-supprimer="${s.id}" data-nom="${s.nom}" class="bouton" style="background:var(--fond-carte-claire); color:var(--danger); padding:6px 12px; font-size:13px">
             Supprimer
           </button>
@@ -156,7 +157,7 @@ async function rafraichir(conteneur) {
 
   listeSessions.querySelectorAll("[data-cloturer]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
-      if (!window.confirm(`Clôturer "${bouton.dataset.nom}" ? Cette action est définitive : plus aucun versement ne pourra être modifié.`)) return;
+      if (!window.confirm(`Clôturer "${bouton.dataset.nom}" ? Cette action est définitive : la session basculera dans les Archives et plus aucun versement ne pourra être modifié.`)) return;
       await supabase
         .from("cotisation_sessions")
         .update({ statut: "cloturee", cloturee_par: moiId, cloturee_le: new Date().toISOString() })
@@ -214,4 +215,4 @@ function gabaritVersementEnAttente(v, nomParId) {
       </div>
     </div>
   `;
-    }
+}
