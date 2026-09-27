@@ -123,7 +123,7 @@ export async function ecranDemandePret(conteneur) {
 
     zoneOnglet.querySelectorAll("[data-supprimer-demande]").forEach((bouton) => {
       bouton.addEventListener("click", async () => {
-        if (!window.confirm("Supprimer cette demande en attente ?")) return;
+        if (!window.confirm("Supprimer cette demande ?")) return;
         await supabase.from("prets_demandes").delete().eq("id", bouton.dataset.supprimerDemande);
         rendreMesDemandes();
       });
@@ -159,6 +159,7 @@ export async function ecranDemandePret(conteneur) {
 
   function gabaritDemande(d, tousLesRemboursements) {
     const estActif = d.statut === "acceptee" && !d.solde;
+    const peutSupprimer = d.statut === "en_attente" || d.statut === "refusee";
     const mesRemb = tousLesRemboursements.filter((r) => r.demande_id === d.id);
     const rembValide = mesRemb.filter((r) => r.statut === "valide").reduce((s, r) => s + Number(r.montant), 0);
     const { moisEnRetard, penalite } = estActif ? calculerPenalite(d.montant, d.date_octroi) : { moisEnRetard: 0, penalite: 0 };
@@ -173,7 +174,7 @@ export async function ecranDemandePret(conteneur) {
           </div>
           <div style="display:flex; align-items:center; gap:8px">
             ${d.solde ? `<span style="font-size:11px; color:#4C9A6A; border:1px solid currentColor; padding:2px 8px; border-radius:999px">Soldé</span>` : badgeStatut(d.statut)}
-            ${d.statut === "en_attente" ? `<button data-supprimer-demande="${d.id}" class="bouton-icone" aria-label="Supprimer" style="color:var(--danger)">✕</button>` : ""}
+            ${peutSupprimer ? `<button data-supprimer-demande="${d.id}" class="bouton-icone" aria-label="Supprimer" style="color:var(--danger)">✕</button>` : ""}
           </div>
         </div>
         ${d.motif ? `<p style="margin:10px 0 0; font-size:13px; color:var(--texte-secondaire)">Motif : ${d.motif}</p>` : ""}
@@ -222,4 +223,4 @@ export async function ecranDemandePret(conteneur) {
   }
 
   rendreFormulaire();
-        }
+}
