@@ -87,6 +87,14 @@ export async function ecranAdminPrets(conteneur) {
         rendreDemandes();
       });
     });
+
+    zoneOnglet.querySelectorAll("[data-supprimer-demande-admin]").forEach((bouton) => {
+      bouton.addEventListener("click", async () => {
+        if (!window.confirm("Supprimer définitivement cette demande refusée ? Cette action est irréversible.")) return;
+        await supabase.from("prets_demandes").delete().eq("id", bouton.dataset.supprimerDemandeAdmin);
+        rendreDemandes();
+      });
+    });
   }
 
   function gabaritDemande(d) {
@@ -97,7 +105,10 @@ export async function ecranAdminPrets(conteneur) {
             <p style="margin:0; font-weight:500">${d.profils?.nom || "—"}</p>
             <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">${formaterDate(d.cree_le)}</p>
           </div>
-          ${badgeStatut(d.statut)}
+          <div style="display:flex; align-items:center; gap:8px">
+            ${badgeStatut(d.statut)}
+            ${d.statut === "refusee" ? `<button data-supprimer-demande-admin="${d.id}" class="bouton-icone" aria-label="Supprimer définitivement" style="color:var(--danger)">✕</button>` : ""}
+          </div>
         </div>
         <p style="margin:10px 0 0; font-family:var(--police-titre); font-size:20px">${Number(d.montant).toLocaleString("fr-FR")} FCFA</p>
         ${d.motif ? `<p style="margin:6px 0 0; font-size:13px; color:var(--texte-secondaire)">Motif : ${d.motif}</p>` : ""}
@@ -278,4 +289,4 @@ export async function ecranAdminPrets(conteneur) {
   }
 
   rendreDemandes();
-        }
+      }
