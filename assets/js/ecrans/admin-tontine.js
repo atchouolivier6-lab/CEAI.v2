@@ -1,6 +1,8 @@
 // =========================================================
 // CEAI — Écran admin "Gestion de la tontine"
 // Plusieurs cycles peuvent être ouverts en même temps.
+// Un cycle clôturé disparaît de cet écran et n'est plus
+// visible que dans les Archives de tontine.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
@@ -19,7 +21,11 @@ async function rafraichir(conteneur) {
   const moiId = await idProfilCourant();
 
   const [{ data: cycles }, { data: participants }, { data: versements }, { data: membres }] = await Promise.all([
-    supabase.from("tontine_cycles").select("id, nom, montant_mensuel, statut, demarre_le, cloture_le").order("demarre_le", { ascending: false }),
+    supabase
+      .from("tontine_cycles")
+      .select("id, nom, montant_mensuel, statut, demarre_le, cloture_le")
+      .eq("statut", "ouvert")
+      .order("demarre_le", { ascending: false }),
     supabase.from("tontine_participants").select("id, cycle_id, membre_id, ordre_tour, a_recu, recu_le, profils(nom)").order("ordre_tour"),
     supabase.from("tontine_versements").select("id, cycle_id, montant, date_versement, statut, tontine_participants(profils(nom))"),
     supabase.from("profils").select("id, nom").eq("actif", true).order("nom"),
@@ -74,7 +80,7 @@ async function rafraichir(conteneur) {
 
   const listeCycles = document.getElementById("liste-cycles");
   if (!cycles || !cycles.length) {
-    listeCycles.innerHTML = `<p style="color:var(--texte-secondaire)">Aucun cycle pour le moment.</p>`;
+    listeCycles.innerHTML = `<p style="color:var(--texte-secondaire)">Aucun cycle ouvert pour le moment. Les cycles clôturés se trouvent dans les Archives.</p>`;
     return;
   }
 
@@ -83,7 +89,6 @@ async function rafraichir(conteneur) {
       const participantsCycle = (participants || []).filter((p) => p.cycle_id === c.id);
       const versementsCycle = (versements || []).filter((v) => v.cycle_id === c.id);
       const enAttente = versementsCycle.filter((v) => v.statut === "en_attente");
-      const estOuvert = c.statut === "ouvert";
 
       return `
       <div class="carte">
@@ -91,11 +96,11 @@ async function rafraichir(conteneur) {
           <div>
             <p style="margin:0; font-weight:500">${c.nom}</p>
             <p style="margin:4px 0 0; font-size:12px; color:var(--texte-secondaire)">
-              Démarré le ${formaterDate(c.demarre_le)}${c.cloture_le ? " · Clôturé le " + formaterDate(c.cloture_le) : ""} · ${Number(c.montant_mensuel).toLocaleString("fr-FR")} FCFA/mois · ${participantsCycle.length} participant(s)
+              Démarré le ${formaterDate(c.demarre_le)} · ${Number(c.montant_mensuel).toLocaleString("fr-FR")} FCFA/mois · ${participantsCycle.length} participant(s)
             </p>
           </div>
-          <span style="font-size:11px; color:${estOuvert ? "#4C9A6A" : "var(--texte-secondaire)"}; border:1px solid currentColor; padding:2px 8px; border-radius:999px; white-space:nowrap">
-            ${estOuvert ? "Ouvert" : "Clôturé"}
+          <span style="font-size:11px; color:#4C9A6A; border:1px solid currentColor; padding:2px 8px; border-radius:999px; white-space:nowrap">
+            Ouvert
           </span>
         </div>
 
@@ -103,14 +108,10 @@ async function rafraichir(conteneur) {
           <button data-basculer-participants="${c.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:6px 12px; font-size:13px">
             Participants (${participantsCycle.length})
           </button>
-          ${
-            estOuvert
-              ? `<button data-basculer-versements="${c.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:6px 12px; font-size:13px">
-                   Versements en attente (${enAttente.length})
-                 </button>
-                 <button data-cloturer="${c.id}" data-nom="${c.nom}" class="bouton" style="background:var(--danger); color:#fff; padding:6px 12px; font-size:13px">Clôturer</button>`
-              : ""
-          }
+          <button data-basculer-versements="${c.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:6px 12px; font-size:13px">
+            Versements en attente (${enAttente.length})
+          </button>
+          <button data-cloturer="${c.id}" data-nom="${c.nom}" class="bouton" style="background:var(--danger); color:#fff; padding:6px 12px; font-size:13px">Clôturer</button>
           <button data-supprimer="${c.id}" data-nom="${c.nom}" class="bouton" style="background:var(--fond-carte-claire); color:var(--danger); padding:6px 12px; font-size:13px">
             Supprimer
           </button>
@@ -122,7 +123,7 @@ async function rafraichir(conteneur) {
               ? participantsCycle.map((p) => gabaritParticipant(p)).join("")
               : `<p style="color:var(--texte-secondaire); font-size:13px">Aucun participant.</p>`
           }
-          ${estOuvert ? gabaritAjoutParticipant(c.id, participantsCycle, membres || []) : ""}
+          ${gabaritAjoutParticipant(c.id, participantsCycle, membres || [])}
         </div>
 
         <div data-liste-versements="${c.id}" hidden style="margin-top:12px; display:flex; flex-direction:column; gap:8px">
@@ -206,7 +207,7 @@ async function rafraichir(conteneur) {
   // --- Clôturer / Supprimer un cycle ---------------------------------------
   listeCycles.querySelectorAll("[data-cloturer]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
-      if (!window.confirm(`Clôturer "${bouton.dataset.nom}" ? Cette action est définitive.`)) return;
+      if (!window.confirm(`Clôturer "${bouton.dataset.nom}" ? Cette action est définitive : le cycle basculera dans les Archives.`)) return;
       await supabase
         .from("tontine_cycles")
         .update({ statut: "cloture", cloture_par: moiId, cloture_le: new Date().toISOString() })
@@ -299,4 +300,4 @@ function gabaritVersementEnAttente(v) {
       </div>
     </div>
   `;
-                            }
+                                                    }
