@@ -2,7 +2,10 @@
 // CEAI — Écran admin "Gestion des cotisations"
 // Plusieurs sessions peuvent être ouvertes en même temps.
 // Une session clôturée disparaît de cet écran et n'est plus
-// visible que dans les Archives de cotisation.
+// visible que dans les Archives de cotisation. Avant de
+// clôturer, l'admin remplit un bilan (dépenses, remboursements
+// de prêts, réalisations) qui sera lisible par tous les membres
+// dans les Archives.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
@@ -115,7 +118,7 @@ async function rafraichir(conteneur) {
           <button data-basculer-liste="${s.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:6px 12px; font-size:13px">
             Versements en attente (${enAttente.length})
           </button>
-          <button data-cloturer="${s.id}" data-nom="${s.nom}" class="bouton" style="background:var(--danger); color:#fff; padding:6px 12px; font-size:13px">Clôturer</button>
+          <button data-ouvrir-bilan="${s.id}" data-nom="${s.nom}" class="bouton" style="background:var(--danger); color:#fff; padding:6px 12px; font-size:13px">Clôturer</button>
           <button data-supprimer="${s.id}" data-nom="${s.nom}" class="bouton" style="background:var(--fond-carte-claire); color:var(--danger); padding:6px 12px; font-size:13px">
             Supprimer
           </button>
@@ -136,6 +139,10 @@ async function rafraichir(conteneur) {
               : `<p style="color:var(--texte-secondaire); font-size:13px">Aucun versement en attente.</p>`
           }
         </div>
+
+        <div data-formulaire-bilan="${s.id}" hidden style="margin-top:16px; padding-top:16px; border-top:1px solid var(--bordure)">
+          ${gabaritFormulaireBilan(s.id, s.nom)}
+        </div>
       </div>
     `;
     })
@@ -155,19 +162,61 @@ async function rafraichir(conteneur) {
     });
   });
 
-  listeSessions.querySelectorAll("[data-cloturer]").forEach((bouton) => {
-    bouton.addEventListener("click", async () => {
-      if (!window.confirm(`Clôturer "${bouton.dataset.nom}" ? Cette action est définitive : la session basculera dans les Archives et plus aucun versement ne pourra être modifié.`)) return;
+  listeSessions.querySelectorAll("[data-ouvrir-bilan]").forEach((bouton) => {
+    bouton.addEventListener("click", () => {
+      const zone = listeSessions.querySelector(`[data-formulaire-bilan="${bouton.dataset.ouvrirBilan}"]`);
+      zone.hidden = !zone.hidden;
+      if (!zone.hidden) zone.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  });
+
+  listeSessions.querySelectorAll("[data-annuler-bilan]").forEach((bouton) => {
+    bouton.addEventListener("click", () => {
+      listeSessions.querySelector(`[data-formulaire-bilan="${bouton.dataset.annulerBilan}"]`).hidden = true;
+    });
+  });
+
+  listeSessions.querySelectorAll("[data-formulaire-bilan-cotisation]").forEach((formulaire) => {
+    formulaire.addEventListener("submit", async (evenement) => {
+      evenement.preventDefault();
+      const sessionId = formulaire.dataset.formulaireBilanCotisation;
+      const nomSession = sessions.find((s) => s.id === sessionId)?.nom || "";
+      const donnees = new FormData(evenement.target);
+      const erreur = formulaire.querySelector(".erreur-bilan");
+      erreur.hidden = true;
+
+      if (!window.confirm(`Confirmer la clôture de "${nomSession}" ? Cette action est définitive.`)) return;
+
+      const { error: erreurBilan } = await supabase.from("cotisation_bilans").insert({
+        session_id: sessionId,
+        depenses_montant: Number(donnees.get("depenses_montant")) || 0,
+        depenses_description: donnees.get("depenses_description")?.trim() || null,
+        remboursements_montant: Number(donnees.get("remboursements_montant")) || 0,
+        remboursements_description: donnees.get("remboursements_description")?.trim() || null,
+        realisations_montant: Number(donnees.get("realisations_montant")) || 0,
+        realisations_description: donnees.get("realisations_description")?.trim() || null,
+        rempli_par: moiId,
+      });
+
+      if (erreurBilan) {
+        erreur.textContent = "Erreur (bilan) : " + erreurBilan.message;
+        erreur.hidden = false;
+        return;
+      }
+
       const { data: sessionCloturee, error: erreurCloture } = await supabase
         .from("cotisation_sessions")
         .update({ statut: "cloturee", cloturee_par: moiId, cloturee_le: new Date().toISOString() })
-        .eq("id", bouton.dataset.cloturer)
+        .eq("id", sessionId)
         .select();
+
       if (erreurCloture || !sessionCloturee || !sessionCloturee.length) {
-        alert("La clôture a échoué : " + (erreurCloture?.message || "aucune ligne modifiée (droits insuffisants ?)"));
+        erreur.textContent = "La clôture a échoué : " + (erreurCloture?.message || "aucune ligne modifiée (droits insuffisants ?)");
+        erreur.hidden = false;
         return;
       }
-      notifier(`La session de cotisation "${bouton.dataset.nom}" a été clôturée.`);
+
+      notifier(`La session de cotisation "${nomSession}" a été clôturée.`);
       rafraichir(conteneur);
     });
   });
@@ -205,6 +254,48 @@ async function rafraichir(conteneur) {
   });
 }
 
+function gabaritFormulaireBilan(sessionId, nomSession) {
+  return `
+    <form data-formulaire-bilan-cotisation="${sessionId}" style="display:flex; flex-direction:column; gap:14px">
+      <p style="margin:0; font-weight:500">Bilan de clôture — ${nomSession}</p>
+      <p style="margin:0; font-size:12px; color:var(--texte-secondaire)">
+        Ce bilan sera visible par tous les membres dans les Archives. Laissez à 0 ce qui ne s'applique pas.
+      </p>
+
+      <div>
+        <p style="margin:0 0 6px; font-size:13px; font-weight:500">Dépenses effectuées</p>
+        <input type="number" name="depenses_montant" min="0" step="1" placeholder="Montant (FCFA)"
+               style="width:100%; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
+        <textarea name="depenses_description" rows="2" placeholder="Détail des dépenses (facultatif)"
+                  style="width:100%; margin-top:6px; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical"></textarea>
+      </div>
+
+      <div>
+        <p style="margin:0 0 6px; font-size:13px; font-weight:500">Remboursements de prêts effectués avec cette cotisation</p>
+        <input type="number" name="remboursements_montant" min="0" step="1" placeholder="Montant (FCFA)"
+               style="width:100%; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
+        <textarea name="remboursements_description" rows="2" placeholder="Détail (facultatif)"
+                  style="width:100%; margin-top:6px; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical"></textarea>
+      </div>
+
+      <div>
+        <p style="margin:0 0 6px; font-size:13px; font-weight:500">Réalisations faites avec cette cotisation</p>
+        <input type="number" name="realisations_montant" min="0" step="1" placeholder="Montant (FCFA)"
+               style="width:100%; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
+        <textarea name="realisations_description" rows="2" placeholder="Détail (facultatif)"
+                  style="width:100%; margin-top:6px; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical"></textarea>
+      </div>
+
+      <p class="erreur-bilan" style="color:var(--danger); font-size:13px; margin:0" hidden></p>
+
+      <div style="display:flex; gap:8px">
+        <button type="submit" class="bouton" style="background:var(--danger); color:#fff; flex:1">Confirmer la clôture</button>
+        <button type="button" data-annuler-bilan="${sessionId}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte)">Annuler</button>
+      </div>
+    </form>
+  `;
+}
+
 function gabaritVersementEnAttente(v, nomParId) {
   return `
     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--bordure)">
@@ -220,4 +311,4 @@ function gabaritVersementEnAttente(v, nomParId) {
       </div>
     </div>
   `;
-    }
+                                                  }
