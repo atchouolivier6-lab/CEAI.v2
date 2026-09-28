@@ -97,6 +97,11 @@ async function afficherDetailSession(conteneur, sessionId, nomSession) {
 
   const versements = await recupererVersementsSession(sessionId);
   const total = versements.filter((v) => v.statut === "valide").reduce((s, v) => s + Number(v.montant), 0);
+  const { data: bilan } = await supabase
+    .from("cotisation_bilans")
+    .select("depenses_montant, depenses_description, remboursements_montant, remboursements_description, realisations_montant, realisations_description")
+    .eq("session_id", sessionId)
+    .maybeSingle();
 
   const lignes = versements
     .map(
@@ -121,6 +126,17 @@ async function afficherDetailSession(conteneur, sessionId, nomSession) {
       <p style="font-family:var(--police-titre); font-size:26px; margin:0">${total.toLocaleString("fr-FR")} FCFA</p>
     </div>
 
+    ${
+      bilan
+        ? `<div class="carte" style="margin-top:12px; background:var(--fond-carte-claire)">
+             <p style="margin:0 0 10px; font-weight:500">Bilan de clôture</p>
+             ${gabaritLigneBilan("Dépenses", bilan.depenses_montant, bilan.depenses_description)}
+             ${gabaritLigneBilan("Remboursements de prêts", bilan.remboursements_montant, bilan.remboursements_description)}
+             ${gabaritLigneBilan("Réalisations", bilan.realisations_montant, bilan.realisations_description)}
+           </div>`
+        : ""
+    }
+
     <div class="carte" style="margin-top:12px">
       <p style="margin:0 0 8px; font-weight:500">Versements</p>
       ${lignes || `<p style="color:var(--texte-secondaire); font-size:13px">Aucun versement.</p>`}
@@ -128,6 +144,18 @@ async function afficherDetailSession(conteneur, sessionId, nomSession) {
   `;
 
   document.getElementById("bouton-retour-archive-cotisation").addEventListener("click", () => ecranCotisationArchives(conteneur));
+}
+
+function gabaritLigneBilan(libelle, montant, description) {
+  return `
+    <div style="padding:8px 0; border-top:1px solid var(--bordure)">
+      <div style="display:flex; justify-content:space-between; align-items:center">
+        <p style="margin:0; font-size:13px">${libelle}</p>
+        <p style="margin:0; font-size:13px; font-weight:500">${Number(montant || 0).toLocaleString("fr-FR")} FCFA</p>
+      </div>
+      ${description ? `<p style="margin:4px 0 0; font-size:12px; color:var(--texte-secondaire)">${description}</p>` : ""}
+    </div>
+  `;
 }
 
 async function recupererVersementsSession(sessionId) {
@@ -172,4 +200,4 @@ async function telechargerSession(sessionId, nomSession, boutonDeclencheur) {
 
   boutonDeclencheur.disabled = false;
   boutonDeclencheur.textContent = texteInitial;
-}
+    }
