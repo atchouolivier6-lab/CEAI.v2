@@ -2,19 +2,29 @@
 // CEAI — Écran "Archives de cotisation" (sessions clôturées)
 // =========================================================
 import { supabase } from "../supabase-client.js";
+import { idProfilCourant } from "../mon-profil.js";
 
 function formaterDate(dateIso) {
   return dateIso ? new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "—";
 }
 
+async function jeSuisAdmin() {
+  const moiId = await idProfilCourant();
+  const { data } = await supabase.from("profils").select("role").eq("id", moiId).single();
+  return data?.role === "admin";
+}
+
 export async function ecranCotisationArchives(conteneur) {
   conteneur.innerHTML = `<h2 class="titre-section">Sessions de cotisation clôturées</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
-  const { data: sessions, error } = await supabase
-    .from("cotisation_sessions")
-    .select("id, nom, ouverte_le, cloturee_le")
-    .eq("statut", "cloturee")
-    .order("cloturee_le", { ascending: false });
+  const [{ data: sessions, error }, estAdmin] = await Promise.all([
+    supabase
+      .from("cotisation_sessions")
+      .select("id, nom, ouverte_le, cloturee_le")
+      .eq("statut", "cloturee")
+      .order("cloturee_le", { ascending: false }),
+    jeSuisAdmin(),
+  ]);
 
   if (error) {
     conteneur.innerHTML = `
@@ -35,10 +45,21 @@ export async function ecranCotisationArchives(conteneur) {
           Ouverte le ${formaterDate(s.ouverte_le)} · Clôturée le ${formaterDate(s.cloturee_le)}
         </p>
       </div>
-      <button class="bouton" data-session-id="${s.id}" data-session-nom="${s.nom}"
-              style="background:var(--fond-carte-claire); color:var(--texte); white-space:nowrap">
-        Télécharger
-      </button>
+      <div style="display:flex; align-items:center; gap:8px">
+        <button class="bouton" data-voir-id="${s.id}" data-voir-nom="${s.nom}"
+                style="background:var(--fond-carte-claire); color:var(--texte); white-space:nowrap">
+          Voir
+        </button>
+        <button class="bouton" data-session-id="${s.id}" data-session-nom="${s.nom}"
+                style="background:var(--fond-carte-claire); color:var(--texte); white-space:nowrap">
+          Télécharger
+        </button>
+        ${
+          estAdmin
+            ? `<button data-supprimer-session="${s.id}" data-supprimer-nom="${s.nom}" class="bouton-icone" aria-label="Supprimer" style="color:var(--danger)">✕</button>`
+            : ""
+        }
+      </div>
     </div>
   `
     )
@@ -53,13 +74,63 @@ export async function ecranCotisationArchives(conteneur) {
   conteneur.querySelectorAll("[data-session-id]").forEach((bouton) => {
     bouton.addEventListener("click", () => telechargerSession(bouton.dataset.sessionId, bouton.dataset.sessionNom, bouton));
   });
+
+  conteneur.querySelectorAll("[data-voir-id]").forEach((bouton) => {
+    bouton.addEventListener("click", () => afficherDetailSession(conteneur, bouton.dataset.voirId, bouton.dataset.voirNom));
+  });
+
+  conteneur.querySelectorAll("[data-supprimer-session]").forEach((bouton) => {
+    bouton.addEventListener("click", async () => {
+      if (!window.confirm(`Supprimer définitivement la session "${bouton.dataset.supprimerNom}" des archives ? Cette action est irréversible.`)) return;
+      const { error } = await supabase.from("cotisation_sessions").delete().eq("id", bouton.dataset.supprimerSession);
+      if (error) {
+        alert("Erreur : " + error.message);
+        return;
+      }
+      ecranCotisationArchives(conteneur);
+    });
+  });
 }
 
-async function telechargerSession(sessionId, nomSession, boutonDeclencheur) {
-  boutonDeclencheur.disabled = true;
-  const texteInitial = boutonDeclencheur.textContent;
-  boutonDeclencheur.textContent = "Préparation…";
+async function afficherDetailSession(conteneur, sessionId, nomSession) {
+  conteneur.innerHTML = `<h2 class="titre-section">${nomSession}</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
+  const versements = await recupererVersementsSession(sessionId);
+  const total = versements.filter((v) => v.statut === "valide").reduce((s, v) => s + Number(v.montant), 0);
+
+  const lignes = versements
+    .map(
+      (v) => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-top:1px solid var(--bordure)">
+        <p style="margin:0; font-size:13px">${v.nom}</p>
+        <p style="margin:0; font-size:13px">${Number(v.montant).toLocaleString("fr-FR")} FCFA · ${formaterDate(v.date_versement)} · ${v.statut}</p>
+      </div>
+    `
+    )
+    .join("");
+
+  conteneur.innerHTML = `
+    <h2 class="titre-section">${nomSession}</h2>
+    <hr class="trait-or" />
+    <button id="bouton-retour-archive-cotisation" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); margin-bottom:16px">
+      ← Retour aux archives
+    </button>
+
+    <div class="carte" style="text-align:center">
+      <p style="color:var(--texte-secondaire); font-size:13px; margin:0 0 4px">Total validé</p>
+      <p style="font-family:var(--police-titre); font-size:26px; margin:0">${total.toLocaleString("fr-FR")} FCFA</p>
+    </div>
+
+    <div class="carte" style="margin-top:12px">
+      <p style="margin:0 0 8px; font-weight:500">Versements</p>
+      ${lignes || `<p style="color:var(--texte-secondaire); font-size:13px">Aucun versement.</p>`}
+    </div>
+  `;
+
+  document.getElementById("bouton-retour-archive-cotisation").addEventListener("click", () => ecranCotisationArchives(conteneur));
+}
+
+async function recupererVersementsSession(sessionId) {
   const { data: versements } = await supabase
     .from("cotisation_versements")
     .select("membre_id, montant, date_versement, statut")
@@ -70,16 +141,20 @@ async function telechargerSession(sessionId, nomSession, boutonDeclencheur) {
   const { data: membres } = idsMembres.length
     ? await supabase.from("profils").select("id, nom").in("id", idsMembres)
     : { data: [] };
-
   const nomParId = Object.fromEntries((membres || []).map((m) => [m.id, m.nom]));
 
+  return (versements || []).map((v) => ({ ...v, nom: nomParId[v.membre_id] || v.membre_id }));
+}
+
+async function telechargerSession(sessionId, nomSession, boutonDeclencheur) {
+  boutonDeclencheur.disabled = true;
+  const texteInitial = boutonDeclencheur.textContent;
+  boutonDeclencheur.textContent = "Préparation…";
+
+  const versements = await recupererVersementsSession(sessionId);
+
   const entetes = ["Membre", "Montant (FCFA)", "Date", "Statut"];
-  const lignes = (versements || []).map((v) => [
-    nomParId[v.membre_id] || v.membre_id,
-    v.montant,
-    v.date_versement,
-    v.statut,
-  ]);
+  const lignes = versements.map((v) => [v.nom, v.montant, v.date_versement, v.statut]);
 
   const csv = [entetes, ...lignes]
     .map((ligne) => ligne.map((valeur) => `"${String(valeur).replace(/"/g, '""')}"`).join(","))
@@ -97,4 +172,4 @@ async function telechargerSession(sessionId, nomSession, boutonDeclencheur) {
 
   boutonDeclencheur.disabled = false;
   boutonDeclencheur.textContent = texteInitial;
-                       }
+}
