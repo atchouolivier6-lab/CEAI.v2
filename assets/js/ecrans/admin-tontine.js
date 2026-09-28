@@ -2,7 +2,9 @@
 // CEAI — Écran admin "Gestion de la tontine"
 // Plusieurs cycles peuvent être ouverts en même temps.
 // Un cycle clôturé disparaît de cet écran et n'est plus
-// visible que dans les Archives de tontine.
+// visible que dans les Archives de tontine. Avant de clôturer,
+// l'admin renseigne le bénéficiaire du tour et le montant reçu,
+// visibles ensuite par tous les membres dans les Archives.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
@@ -111,7 +113,7 @@ async function rafraichir(conteneur) {
           <button data-basculer-versements="${c.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:6px 12px; font-size:13px">
             Versements en attente (${enAttente.length})
           </button>
-          <button data-cloturer="${c.id}" data-nom="${c.nom}" class="bouton" style="background:var(--danger); color:#fff; padding:6px 12px; font-size:13px">Clôturer</button>
+          <button data-ouvrir-bilan="${c.id}" data-nom="${c.nom}" class="bouton" style="background:var(--danger); color:#fff; padding:6px 12px; font-size:13px">Clôturer</button>
           <button data-supprimer="${c.id}" data-nom="${c.nom}" class="bouton" style="background:var(--fond-carte-claire); color:var(--danger); padding:6px 12px; font-size:13px">
             Supprimer
           </button>
@@ -132,6 +134,10 @@ async function rafraichir(conteneur) {
               ? enAttente.map((v) => gabaritVersementEnAttente(v)).join("")
               : `<p style="color:var(--texte-secondaire); font-size:13px">Aucun versement en attente.</p>`
           }
+        </div>
+
+        <div data-formulaire-bilan="${c.id}" hidden style="margin-top:16px; padding-top:16px; border-top:1px solid var(--bordure)">
+          ${gabaritFormulaireBilan(c, participantsCycle)}
         </div>
       </div>
     `;
@@ -204,20 +210,66 @@ async function rafraichir(conteneur) {
     });
   });
 
-  // --- Clôturer / Supprimer un cycle ---------------------------------------
-  listeCycles.querySelectorAll("[data-cloturer]").forEach((bouton) => {
-    bouton.addEventListener("click", async () => {
-      if (!window.confirm(`Clôturer "${bouton.dataset.nom}" ? Cette action est définitive : le cycle basculera dans les Archives.`)) return;
+  // --- Ouvrir / annuler le bilan de clôture -------------------------------
+  listeCycles.querySelectorAll("[data-ouvrir-bilan]").forEach((bouton) => {
+    bouton.addEventListener("click", () => {
+      const zone = listeCycles.querySelector(`[data-formulaire-bilan="${bouton.dataset.ouvrirBilan}"]`);
+      zone.hidden = !zone.hidden;
+      if (!zone.hidden) zone.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  });
+
+  listeCycles.querySelectorAll("[data-annuler-bilan]").forEach((bouton) => {
+    bouton.addEventListener("click", () => {
+      listeCycles.querySelector(`[data-formulaire-bilan="${bouton.dataset.annulerBilan}"]`).hidden = true;
+    });
+  });
+
+  listeCycles.querySelectorAll("[data-formulaire-bilan-tontine]").forEach((formulaire) => {
+    formulaire.addEventListener("submit", async (evenement) => {
+      evenement.preventDefault();
+      const cycleId = formulaire.dataset.formulaireBilanTontine;
+      const nomCycle = cycles.find((c) => c.id === cycleId)?.nom || "";
+      const donnees = new FormData(evenement.target);
+      const erreur = formulaire.querySelector(".erreur-bilan");
+      erreur.hidden = true;
+
+      const beneficiaireParticipantId = donnees.get("beneficiaire_participant_id");
+      if (!beneficiaireParticipantId) {
+        erreur.textContent = "Veuillez indiquer qui a reçu le tour.";
+        erreur.hidden = false;
+        return;
+      }
+
+      if (!window.confirm(`Confirmer la clôture de "${nomCycle}" ? Cette action est définitive.`)) return;
+
+      const { error: erreurBilan } = await supabase.from("tontine_bilans").insert({
+        cycle_id: cycleId,
+        beneficiaire_participant_id: beneficiaireParticipantId,
+        montant_recu: Number(donnees.get("montant_recu")) || null,
+        notes: donnees.get("notes")?.trim() || null,
+        rempli_par: moiId,
+      });
+
+      if (erreurBilan) {
+        erreur.textContent = "Erreur (bilan) : " + erreurBilan.message;
+        erreur.hidden = false;
+        return;
+      }
+
       const { data: cycleCloture, error: erreurCloture } = await supabase
         .from("tontine_cycles")
         .update({ statut: "cloture", cloture_par: moiId, cloture_le: new Date().toISOString() })
-        .eq("id", bouton.dataset.cloturer)
+        .eq("id", cycleId)
         .select();
+
       if (erreurCloture || !cycleCloture || !cycleCloture.length) {
-        alert("La clôture a échoué : " + (erreurCloture?.message || "aucune ligne modifiée (droits insuffisants ?)"));
+        erreur.textContent = "La clôture a échoué : " + (erreurCloture?.message || "aucune ligne modifiée (droits insuffisants ?)");
+        erreur.hidden = false;
         return;
       }
-      notifier(`Le cycle de tontine "${bouton.dataset.nom}" a été clôturé.`);
+
+      notifier(`Le cycle de tontine "${nomCycle}" a été clôturé.`);
       rafraichir(conteneur);
     });
   });
@@ -253,6 +305,49 @@ async function rafraichir(conteneur) {
       rafraichir(conteneur);
     });
   });
+}
+
+function gabaritFormulaireBilan(cycle, participantsCycle) {
+  const montantSuggere = Number(cycle.montant_mensuel) * participantsCycle.length;
+
+  return `
+    <form data-formulaire-bilan-tontine="${cycle.id}" style="display:flex; flex-direction:column; gap:14px">
+      <p style="margin:0; font-weight:500">Bilan de clôture — ${cycle.nom}</p>
+      <p style="margin:0; font-size:12px; color:var(--texte-secondaire)">
+        Ce bilan sera visible par tous les membres dans les Archives.
+      </p>
+
+      <label class="champ">
+        <span>Qui a reçu le tour ?</span>
+        <select name="beneficiaire_participant_id" required style="background:var(--fond); border:1px solid var(--bordure);
+                border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px">
+          <option value="">— Sélectionner —</option>
+          ${participantsCycle
+            .map((p) => `<option value="${p.id}">${p.ordre_tour}. ${p.profils?.nom || "—"}</option>`)
+            .join("")}
+        </select>
+      </label>
+
+      <label class="champ">
+        <span>Montant reçu (FCFA)</span>
+        <input type="number" name="montant_recu" min="0" step="1" value="${montantSuggere}"
+               style="width:100%; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
+      </label>
+
+      <label class="champ">
+        <span>Notes (comment s'est passé le tour, incidents éventuels...)</span>
+        <textarea name="notes" rows="3"
+                  style="width:100%; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical"></textarea>
+      </label>
+
+      <p class="erreur-bilan" style="color:var(--danger); font-size:13px; margin:0" hidden></p>
+
+      <div style="display:flex; gap:8px">
+        <button type="submit" class="bouton" style="background:var(--danger); color:#fff; flex:1">Confirmer la clôture</button>
+        <button type="button" data-annuler-bilan="${cycle.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte)">Annuler</button>
+      </div>
+    </form>
+  `;
 }
 
 function gabaritAjoutParticipant(cycleId, participantsCycle, membres) {
@@ -305,4 +400,4 @@ function gabaritVersementEnAttente(v) {
       </div>
     </div>
   `;
-                                                                   }
+}
