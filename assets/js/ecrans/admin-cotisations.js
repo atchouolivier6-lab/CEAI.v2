@@ -158,10 +158,15 @@ async function rafraichir(conteneur) {
   listeSessions.querySelectorAll("[data-cloturer]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
       if (!window.confirm(`Clôturer "${bouton.dataset.nom}" ? Cette action est définitive : la session basculera dans les Archives et plus aucun versement ne pourra être modifié.`)) return;
-      await supabase
+      const { data: sessionCloturee, error: erreurCloture } = await supabase
         .from("cotisation_sessions")
         .update({ statut: "cloturee", cloturee_par: moiId, cloturee_le: new Date().toISOString() })
-        .eq("id", bouton.dataset.cloturer);
+        .eq("id", bouton.dataset.cloturer)
+        .select();
+      if (erreurCloture || !sessionCloturee || !sessionCloturee.length) {
+        alert("La clôture a échoué : " + (erreurCloture?.message || "aucune ligne modifiée (droits insuffisants ?)"));
+        return;
+      }
       notifier(`La session de cotisation "${bouton.dataset.nom}" a été clôturée.`);
       rafraichir(conteneur);
     });
@@ -215,4 +220,4 @@ function gabaritVersementEnAttente(v, nomParId) {
       </div>
     </div>
   `;
-}
+    }
