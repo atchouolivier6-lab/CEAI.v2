@@ -96,6 +96,12 @@ async function afficherDetailCycle(conteneur, cycleId, nomCycle) {
   conteneur.innerHTML = `<h2 class="titre-section">${nomCycle}</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
   const { participants, versements } = await recupererDonneesCycle(cycleId);
+  const { data: bilan } = await supabase
+    .from("tontine_bilans")
+    .select("montant_recu, notes, beneficiaire_participant_id")
+    .eq("cycle_id", cycleId)
+    .maybeSingle();
+  const beneficiaire = bilan ? participants.find((p) => p.id === bilan.beneficiaire_participant_id) : null;
 
   const lignesParticipants = participants
     .map(
@@ -126,7 +132,17 @@ async function afficherDetailCycle(conteneur, cycleId, nomCycle) {
       ← Retour aux archives
     </button>
 
-    <div class="carte">
+    ${
+      bilan
+        ? `<div class="carte" style="background:var(--fond-carte-claire)">
+             <p style="margin:0 0 8px; font-weight:500">Bilan de clôture</p>
+             <p style="margin:0; font-size:13px"><strong>${beneficiaire?.nom || "—"}</strong> a reçu le tour${bilan.montant_recu ? " · " + Number(bilan.montant_recu).toLocaleString("fr-FR") + " FCFA" : ""}</p>
+             ${bilan.notes ? `<p style="margin:8px 0 0; font-size:13px; color:var(--texte-secondaire); white-space:pre-line">${bilan.notes}</p>` : ""}
+           </div>`
+        : ""
+    }
+
+    <div class="carte" style="margin-top:12px">
       <p style="margin:0 0 8px; font-weight:500">Participants et ordre de passage</p>
       ${lignesParticipants || `<p style="color:var(--texte-secondaire); font-size:13px">Aucun participant.</p>`}
     </div>
@@ -205,4 +221,4 @@ async function telechargerCycle(cycleId, nomCycle, boutonDeclencheur) {
 
   boutonDeclencheur.disabled = false;
   boutonDeclencheur.textContent = texteInitial;
-          }
+         }
