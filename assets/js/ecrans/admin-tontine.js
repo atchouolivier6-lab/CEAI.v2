@@ -208,10 +208,15 @@ async function rafraichir(conteneur) {
   listeCycles.querySelectorAll("[data-cloturer]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
       if (!window.confirm(`Clôturer "${bouton.dataset.nom}" ? Cette action est définitive : le cycle basculera dans les Archives.`)) return;
-      await supabase
+      const { data: cycleCloture, error: erreurCloture } = await supabase
         .from("tontine_cycles")
         .update({ statut: "cloture", cloture_par: moiId, cloture_le: new Date().toISOString() })
-        .eq("id", bouton.dataset.cloturer);
+        .eq("id", bouton.dataset.cloturer)
+        .select();
+      if (erreurCloture || !cycleCloture || !cycleCloture.length) {
+        alert("La clôture a échoué : " + (erreurCloture?.message || "aucune ligne modifiée (droits insuffisants ?)"));
+        return;
+      }
       notifier(`Le cycle de tontine "${bouton.dataset.nom}" a été clôturé.`);
       rafraichir(conteneur);
     });
@@ -300,4 +305,4 @@ function gabaritVersementEnAttente(v) {
       </div>
     </div>
   `;
-                                                    }
+                                                                   }
