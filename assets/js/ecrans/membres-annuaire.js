@@ -2,10 +2,9 @@
 // CEAI — Écran "Annuaire des membres"
 // Un profil retiré (actif = false) disparaît de l'annuaire
 // pour tout le monde, mais reste visible et réversible pour
-// l'admin. L'admin peut aussi proposer un autre admin comme
-// comptable ; les autres admins votent (2 "contre" = rejeté,
-// sinon accepté une fois que tous ont voté). L'admin garde
-// toujours tous ses accès, quoi qu'il arrive.
+// l'admin, et conserve tout son historique (versements,
+// participations, prêts). La nomination d'admin et de
+// comptable se fait dans l'espace Administration > Membres.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
@@ -90,53 +89,8 @@ function rendreGrille(conteneur, membres, estAdmin) {
   });
 }
 
-async function rendreDetail(conteneur, membre, estAdmin) {
+function rendreDetail(conteneur, membre, estAdmin) {
   const retire = membre.actif === false;
-  const moiId = estAdmin ? await idProfilCourant() : null;
-
-  let zoneComptableHtml = "";
-  if (estAdmin && membre.role === "admin") {
-    const { data: voteEnCours } = await supabase
-      .from("comptable_votes")
-      .select("id, propose_par")
-      .eq("candidat_id", membre.id)
-      .eq("statut", "en_cours")
-      .maybeSingle();
-
-    if (voteEnCours) {
-      const { data: reponses } = await supabase
-        .from("comptable_votes_reponses")
-        .select("admin_id, choix")
-        .eq("vote_id", voteEnCours.id);
-
-      const pour = (reponses || []).filter((r) => r.choix === "pour").length;
-      const contre = (reponses || []).filter((r) => r.choix === "contre").length;
-      const dejaVote = (reponses || []).some((r) => r.admin_id === moiId);
-
-      zoneComptableHtml = `
-        <div class="carte" style="background:var(--fond-carte-claire)">
-          <p style="margin:0; font-weight:500">Vote en cours : ${membre.nom} comme comptable</p>
-          <p style="margin:6px 0 0; font-size:13px; color:var(--texte-secondaire)">${pour} pour · ${contre} contre</p>
-          ${
-            dejaVote
-              ? `<p style="margin:10px 0 0; font-size:13px; color:var(--texte-secondaire)">Vous avez déjà voté.</p>`
-              : `<div style="display:flex; gap:8px; margin-top:12px">
-                   <button data-voter="${voteEnCours.id}" data-choix="pour" class="bouton" style="background:#4C9A6A; color:#fff; flex:1">Voter Pour</button>
-                   <button data-voter="${voteEnCours.id}" data-choix="contre" class="bouton" style="background:var(--danger); color:#fff; flex:1">Voter Contre</button>
-                 </div>`
-          }
-        </div>
-      `;
-    } else {
-      zoneComptableHtml = `
-        <button id="bouton-proposer-comptable" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); margin-top:12px; width:100%">
-          Proposer comme comptable
-        </button>
-      `;
-    }
-  } else if (membre.role === "comptable") {
-    zoneComptableHtml = `<p style="margin:8px 0 0; font-size:12px; color:var(--texte-secondaire)">Comptable actuel — un seul comptable à la fois.</p>`;
-  }
 
   conteneur.innerHTML = `
     <button id="bouton-retour-annuaire" class="lien" style="margin-bottom:16px">← Retour à l'annuaire</button>
@@ -156,7 +110,6 @@ async function rendreDetail(conteneur, membre, estAdmin) {
       <p style="color:var(--texte-secondaire); font-size:12px; margin:0">BIO</p>
       <p style="margin:2px 0 0">${membre.bio || "—"}</p>
     </div>
-    ${zoneComptableHtml}
     ${
       estAdmin
         ? `<button id="bouton-toggle-actif" class="bouton" style="background:${retire ? "#4C9A6A" : "var(--danger)"}; color:#fff; margin-top:12px; width:100%">
@@ -187,47 +140,4 @@ async function rendreDetail(conteneur, membre, estAdmin) {
       ecranAnnuaire(conteneur);
     });
   }
-
-  const boutonProposer = document.getElementById("bouton-proposer-comptable");
-  if (boutonProposer) {
-    boutonProposer.addEventListener("click", async () => {
-      if (!window.confirm(`Proposer ${membre.nom} comme comptable ? Les autres admins vont voter.`)) return;
-
-      const { data: nouveauVote, error: erreurVote } = await supabase
-        .from("comptable_votes")
-        .insert({ candidat_id: membre.id, propose_par: moiId })
-        .select()
-        .single();
-
-      if (erreurVote) {
-        alert("Erreur : " + erreurVote.message);
-        return;
-      }
-
-      await supabase.from("comptable_votes_reponses").insert({
-        vote_id: nouveauVote.id,
-        admin_id: moiId,
-        choix: "pour",
-      });
-      await supabase.rpc("verifier_vote_comptable", { p_vote_id: nouveauVote.id });
-
-      rendreDetail(conteneur, membre, estAdmin);
-    });
-  }
-
-  conteneur.querySelectorAll("[data-voter]").forEach((bouton) => {
-    bouton.addEventListener("click", async () => {
-      const { error } = await supabase.from("comptable_votes_reponses").insert({
-        vote_id: bouton.dataset.voter,
-        admin_id: moiId,
-        choix: bouton.dataset.choix,
-      });
-      if (error) {
-        alert("Erreur : " + error.message);
-        return;
-      }
-      await supabase.rpc("verifier_vote_comptable", { p_vote_id: bouton.dataset.voter });
-      rendreDetail(conteneur, membre, estAdmin);
-    });
-  });
-  }
+                                                                              }
