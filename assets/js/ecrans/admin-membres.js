@@ -1,5 +1,9 @@
 // =========================================================
 // CEAI — Écran admin "Gestion des membres"
+// Inclut la nomination d'admins (vote à la majorité) et,
+// séparément, la proposition/vote pour élire un comptable
+// parmi les admins (2 "contre" = rejeté, sinon accepté une
+// fois que tous les admins ont voté).
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
@@ -22,14 +26,23 @@ export async function ecranAdminMembres(conteneur) {
 
   const moiId = await idProfilCourant();
 
-  const [{ data: membres }, { data: votesEnCours }, { data: toutesLesVoix }] = await Promise.all([
+  const [
+    { data: membres },
+    { data: votesEnCours },
+    { data: toutesLesVoix },
+    { data: votesComptableEnCours },
+    { data: voixComptable },
+  ] = await Promise.all([
     supabase.from("profils").select("id, nom, role, a_un_compte, telephone, actif").order("nom"),
     supabase.from("votes_admin").select("id, candidat_id, propose_par, cree_le").eq("statut", "en_cours"),
     supabase.from("votes_admin_voix").select("vote_id, admin_id, voix"),
+    supabase.from("comptable_votes").select("id, candidat_id, propose_par").eq("statut", "en_cours"),
+    supabase.from("comptable_votes_reponses").select("vote_id, admin_id, choix"),
   ]);
 
   const nomParId = Object.fromEntries((membres || []).map((m) => [m.id, m.nom]));
   const nombreAdmins = (membres || []).filter((m) => m.role === "admin").length;
+  const idsAvecVoteComptableEnCours = new Set((votesComptableEnCours || []).map((v) => v.candidat_id));
 
   conteneur.innerHTML = `
     <h2 class="titre-section">Gestion des membres</h2>
@@ -55,9 +68,18 @@ export async function ecranAdminMembres(conteneur) {
 
     ${
       (votesEnCours || []).length
-        ? `<p style="font-weight:500; margin:24px 0 8px">Votes de nomination en cours</p>` +
+        ? `<p style="font-weight:500; margin:24px 0 8px">Votes de nomination admin en cours</p>` +
           votesEnCours
             .map((v) => gabaritVote(v, toutesLesVoix || [], nomParId, nombreAdmins, moiId))
+            .join("")
+        : ""
+    }
+
+    ${
+      (votesComptableEnCours || []).length
+        ? `<p style="font-weight:500; margin:24px 0 8px">Votes de nomination comptable en cours</p>` +
+          votesComptableEnCours
+            .map((v) => gabaritVoteComptable(v, voixComptable || [], nomParId, nombreAdmins, moiId))
             .join("")
         : ""
     }
@@ -66,7 +88,7 @@ export async function ecranAdminMembres(conteneur) {
     <div id="liste-membres"></div>
   `;
 
-  rendreListeMembres(membres || [], moiId, nombreAdmins, conteneur);
+  rendreListeMembres(membres || [], moiId, nombreAdmins, idsAvecVoteComptableEnCours, conteneur);
 
   // --- Détection de doublon de nom pendant la saisie -----------------------
   const champNom = document.querySelector("#formulaire-nouveau-membre input[name='nom']");
@@ -135,6 +157,52 @@ export async function ecranAdminMembres(conteneur) {
       ecranAdminMembres(conteneur);
     });
   });
+
+  // --- Proposer un comptable -------------------------------------------------
+  conteneur.querySelectorAll("[data-proposer-comptable]").forEach((bouton) => {
+    bouton.addEventListener("click", async () => {
+      if (!window.confirm(`Proposer ${bouton.dataset.nom} comme comptable ? Les autres admins vont voter.`)) return;
+
+      const { data: nouveauVote, error } = await supabase
+        .from("comptable_votes")
+        .insert({ candidat_id: bouton.dataset.proposerComptable, propose_par: moiId })
+        .select()
+        .single();
+
+      if (error) {
+        afficherMessage("Erreur : " + error.message, true);
+        return;
+      }
+
+      await supabase.from("comptable_votes_reponses").insert({
+        vote_id: nouveauVote.id,
+        admin_id: moiId,
+        choix: "pour",
+      });
+      await supabase.rpc("verifier_vote_comptable", { p_vote_id: nouveauVote.id });
+
+      notifier(`Une proposition de comptable a été lancée pour ${bouton.dataset.nom}.`);
+      ecranAdminMembres(conteneur);
+    });
+  });
+
+  // --- Voter pour un candidat comptable --------------------------------------
+  conteneur.querySelectorAll("[data-voter-comptable]").forEach((bouton) => {
+    bouton.addEventListener("click", async () => {
+      const [voteId, choix] = bouton.dataset.voterComptable.split("|");
+      const { error } = await supabase.from("comptable_votes_reponses").insert({
+        vote_id: voteId,
+        admin_id: moiId,
+        choix,
+      });
+      if (error) {
+        afficherMessage("Erreur : " + error.message, true);
+        return;
+      }
+      await supabase.rpc("verifier_vote_comptable", { p_vote_id: voteId });
+      ecranAdminMembres(conteneur);
+    });
+  });
 }
 
 function gabaritVote(vote, toutesLesVoix, nomParId, nombreAdmins, moiId) {
@@ -161,6 +229,31 @@ function gabaritVote(vote, toutesLesVoix, nomParId, nombreAdmins, moiId) {
   `;
 }
 
+function gabaritVoteComptable(vote, toutesLesVoix, nomParId, nombreAdmins, moiId) {
+  const voixDuVote = toutesLesVoix.filter((v) => v.vote_id === vote.id);
+  const pour = voixDuVote.filter((v) => v.choix === "pour").length;
+  const contre = voixDuVote.filter((v) => v.choix === "contre").length;
+  const jaiDejaVote = voixDuVote.some((v) => v.admin_id === moiId);
+  const totalAdminsConcernes = Math.max(nombreAdmins - 1, 0);
+
+  return `
+    <div class="carte" style="background:var(--fond-carte-claire)">
+      <p style="margin:0; font-weight:500">${nomParId[vote.candidat_id] || "—"} comme comptable</p>
+      <p style="margin:4px 0 12px; font-size:12px; color:var(--texte-secondaire)">
+        Proposé par ${nomParId[vote.propose_par] || "—"} · ${pour} pour / ${contre} contre (sur ${totalAdminsConcernes} admins concernés)
+      </p>
+      ${
+        jaiDejaVote
+          ? `<p style="margin:0; font-size:13px; color:var(--texte-secondaire)">Vous avez déjà voté.</p>`
+          : `<div style="display:flex; gap:8px">
+              <button data-voter-comptable="${vote.id}|pour" class="bouton" style="background:#4C9A6A; color:#fff; padding:8px 14px; font-size:13px">Voter pour</button>
+              <button data-voter-comptable="${vote.id}|contre" class="bouton" style="background:var(--danger); color:#fff; padding:8px 14px; font-size:13px">Voter contre</button>
+            </div>`
+      }
+    </div>
+  `;
+}
+
 async function evaluerVote(voteId, nombreAdmins) {
   const { data: voix } = await supabase.from("votes_admin_voix").select("voix").eq("vote_id", voteId);
   const pour = (voix || []).filter((v) => v.voix).length;
@@ -177,7 +270,7 @@ async function evaluerVote(voteId, nombreAdmins) {
   }
 }
 
-function rendreListeMembres(membres, moiId, nombreAdmins, conteneurParent) {
+function rendreListeMembres(membres, moiId, nombreAdmins, idsAvecVoteComptableEnCours, conteneurParent) {
   const conteneurListe = document.getElementById("liste-membres");
   conteneurListe.innerHTML = membres
     .map(
@@ -199,6 +292,12 @@ function rendreListeMembres(membres, moiId, nombreAdmins, conteneurParent) {
         m.role !== "admin"
           ? `<button data-proposer="${m.id}" data-nom="${m.nom}" class="bouton" style="background:var(--fond-carte-claire);
                color:var(--texte); padding:6px 10px; font-size:12px; white-space:nowrap">Proposer admin</button>`
+          : ""
+      }
+      ${
+        m.role === "admin" && !idsAvecVoteComptableEnCours.has(m.id)
+          ? `<button data-proposer-comptable="${m.id}" data-nom="${m.nom}" class="bouton" style="background:var(--fond-carte-claire);
+               color:var(--texte); padding:6px 10px; font-size:12px; white-space:nowrap">Proposer comptable</button>`
           : ""
       }
       ${
@@ -267,4 +366,4 @@ function rendreListeMembres(membres, moiId, nombreAdmins, conteneurParent) {
       ecranAdminMembres(conteneurParent);
     });
   });
-}
+    }
