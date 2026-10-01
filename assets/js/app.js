@@ -18,6 +18,10 @@ const iconeTheme = document.getElementById("icone-theme");
 
 const CLE_DERNIERE_VISITE = "ceai-dernieres-notifs-vues";
 
+// Routes de l'espace Administration accessibles au comptable.
+// L'admin, lui, voit toujours tout le menu sans restriction.
+const ROUTES_ADMIN_POUR_COMPTABLE = ["admin/cotisations", "admin/tontine", "admin/prets"];
+
 // --- Thème clair / sombre (mémorisé, s'applique uniquement à l'app) -----
 const ICONE_SOLEIL = '<circle cx="12" cy="12" r="4.2"/><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>';
 const ICONE_LUNE = '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z"/>';
@@ -109,7 +113,11 @@ function ecouterNotificationsEnDirect() {
     .subscribe();
 }
 
-// --- Affiche le menu Administration si le profil est admin --------------
+// --- Affiche le menu Administration selon le rôle --------------------------
+// Admin : voit tout, sans restriction.
+// Comptable : voit le menu Administration, mais limité à
+// Gestion des cotisations, Gestion de la tontine et Service de prêt.
+// Tout autre rôle : menu Administration totalement masqué.
 async function afficherMenuSelonRole() {
   const { data: session } = await supabase.auth.getUser();
   if (!session?.user) return;
@@ -120,7 +128,17 @@ async function afficherMenuSelonRole() {
     .eq("id_auth", session.user.id)
     .single();
 
-  menuAdmin.hidden = profil?.role !== "admin";
+  const role = profil?.role;
+  const estAdmin = role === "admin";
+  const estComptable = role === "comptable";
+
+  menuAdmin.hidden = !estAdmin && !estComptable;
+
+  if (estComptable) {
+    document.querySelectorAll('[data-sous-menu="admin"] .menu-item[data-route]').forEach((bouton) => {
+      bouton.closest("li").hidden = !ROUTES_ADMIN_POUR_COMPTABLE.includes(bouton.dataset.route);
+    });
+  }
 }
 
 // --- Démarrage -------------------------------------------------------------
