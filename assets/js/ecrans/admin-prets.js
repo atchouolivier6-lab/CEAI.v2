@@ -1,5 +1,8 @@
 // =========================================================
 // CEAI — Écran admin "Service de prêt"
+// Accès : admin ET comptable peuvent traiter les demandes
+// (accepter/refuser). Seul l'admin peut supprimer
+// définitivement une demande refusée des archives.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
@@ -14,6 +17,12 @@ function badgeStatut(statut) {
   const libelles = { en_attente: "En attente", acceptee: "Acceptée", refusee: "Refusée" };
   const couleurs = { en_attente: "var(--or-texte)", acceptee: "#4C9A6A", refusee: "var(--danger)" };
   return `<span style="font-size:11px; color:${couleurs[statut]}; border:1px solid currentColor; padding:2px 8px; border-radius:999px">${libelles[statut]}</span>`;
+}
+
+async function obtenirRole() {
+  const moiId = await idProfilCourant();
+  const { data } = await supabase.from("profils").select("role").eq("id", moiId).single();
+  return data?.role || "membre";
 }
 
 export async function ecranAdminPrets(conteneur) {
@@ -47,6 +56,8 @@ export async function ecranAdminPrets(conteneur) {
 
   async function rendreDemandes() {
     zoneOnglet.innerHTML = `<p class="chargement">Chargement…</p>`;
+    const role = await obtenirRole();
+    const estAdmin = role === "admin";
 
     const { data: demandes, error } = await supabase
       .from("prets_demandes")
@@ -63,7 +74,7 @@ export async function ecranAdminPrets(conteneur) {
       return;
     }
 
-    zoneOnglet.innerHTML = demandes.map((d) => gabaritDemande(d)).join("");
+    zoneOnglet.innerHTML = demandes.map((d) => gabaritDemande(d, estAdmin)).join("");
 
     zoneOnglet.querySelectorAll("[data-traiter]").forEach((bouton) => {
       bouton.addEventListener("click", async () => {
@@ -97,7 +108,7 @@ export async function ecranAdminPrets(conteneur) {
     });
   }
 
-  function gabaritDemande(d) {
+  function gabaritDemande(d, estAdmin) {
     return `
       <div class="carte">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px">
@@ -107,7 +118,7 @@ export async function ecranAdminPrets(conteneur) {
           </div>
           <div style="display:flex; align-items:center; gap:8px">
             ${badgeStatut(d.statut)}
-            ${d.statut === "refusee" ? `<button data-supprimer-demande-admin="${d.id}" class="bouton-icone" aria-label="Supprimer définitivement" style="color:var(--danger)">✕</button>` : ""}
+            ${estAdmin && d.statut === "refusee" ? `<button data-supprimer-demande-admin="${d.id}" class="bouton-icone" aria-label="Supprimer définitivement" style="color:var(--danger)">✕</button>` : ""}
           </div>
         </div>
         <p style="margin:10px 0 0; font-family:var(--police-titre); font-size:20px">${Number(d.montant).toLocaleString("fr-FR")} FCFA</p>
@@ -289,4 +300,4 @@ export async function ecranAdminPrets(conteneur) {
   }
 
   rendreDemandes();
-      }
+}
