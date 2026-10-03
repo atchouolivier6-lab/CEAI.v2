@@ -13,11 +13,13 @@ import { ecranCotisationAdherer, ecranCotisationSuivi, ecranCotisationVerser } f
 import { ecranCotisationArchives } from "./ecrans/cotisation-archives.js";
 import { ecranTontineRejoindre, ecranTontineSuivi, ecranTontineVerser } from "./ecrans/tontine-membre.js";
 import { ecranTontineArchives } from "./ecrans/tontine-archives.js";
+import { ecranEpargneComptes, ecranEpargneOuvrir, ecranEpargneVerser } from "./ecrans/epargne-membre.js";
 import { ecranAPropos } from "./ecrans/a-propos.js";
 import { ecranFondateurs } from "./ecrans/fondateurs.js";
 import { ecranPublications } from "./ecrans/publications.js";
 import { ecranAdminCotisations } from "./ecrans/admin-cotisations.js";
 import { ecranAdminTontine } from "./ecrans/admin-tontine.js";
+import { ecranAdminEpargne } from "./ecrans/admin-epargne.js";
 import { ecranAdminMembres } from "./ecrans/admin-membres.js";
 import { ecranDemandePret } from "./ecrans/demande-pret.js";
 import { ecranAdminPrets } from "./ecrans/admin-prets.js";
@@ -106,6 +108,9 @@ const routes = {
   "tontine/suivi": ecranTontineSuivi,
   "tontine/verser": ecranTontineVerser,
   "tontine/archives": ecranTontineArchives,
+  "epargne/comptes": ecranEpargneComptes,
+  "epargne/ouvrir": ecranEpargneOuvrir,
+  "epargne/verser": ecranEpargneVerser,
   "publications": ecranPublications,
   "prets": ecranDemandePret,
   "membres/annuaire": ecranAnnuaire,
@@ -117,6 +122,7 @@ const routes = {
   "admin/membres": ecranAdminMembres,
   "admin/cotisations": ecranAdminCotisations,
   "admin/tontine": ecranAdminTontine,
+  "admin/epargne": ecranAdminEpargne,
   "admin/publications": ecranAdminPublications,
   "admin/notifications": ecranAdminNotifications,
   "admin/prets": ecranAdminPrets,
@@ -147,4 +153,4 @@ export function initialiserRouteur() {
 
   const routeInitiale = window.location.hash.replace("#", "") || "accueil";
   naviguerVers(routeInitiale);
-  }
+    }
