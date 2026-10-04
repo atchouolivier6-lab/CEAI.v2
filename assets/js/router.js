@@ -5,7 +5,6 @@
 // Les écrans détaillés (Cotisation, Tontine, etc.) seront
 // ajoutés ici au fur et à mesure, un fichier par domaine.
 // =========================================================
-import { supabase } from "./supabase-client.js";
 import { ecranMonProfil } from "./ecrans/membres-profil.js";
 import { ecranAnnuaire } from "./ecrans/membres-annuaire.js";
 import { ecranMessagerie } from "./ecrans/membres-messagerie.js";
@@ -14,8 +13,8 @@ import { ecranCotisationArchives } from "./ecrans/cotisation-archives.js";
 import { ecranTontineRejoindre, ecranTontineSuivi, ecranTontineVerser } from "./ecrans/tontine-membre.js";
 import { ecranTontineArchives } from "./ecrans/tontine-archives.js";
 import { ecranEpargneComptes, ecranEpargneOuvrir, ecranEpargneVerser } from "./ecrans/epargne-membre.js";
+import { ecranAccueil } from "./ecrans/accueil.js";
 import { ecranAPropos } from "./ecrans/a-propos.js";
-import { ecranFondateurs } from "./ecrans/fondateurs.js";
 import { ecranPublications } from "./ecrans/publications.js";
 import { ecranAdminCotisations } from "./ecrans/admin-cotisations.js";
 import { ecranAdminTontine } from "./ecrans/admin-tontine.js";
@@ -28,64 +27,6 @@ import { ecranAdminTableauBord, ecranAdminStatistiques } from "./ecrans/admin-st
 import { ecranAdminPublications } from "./ecrans/admin-publications.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
-
-async function ecranAccueil(conteneur) {
-  const { data: session } = await supabase.auth.getUser();
-  const nom = session?.user?.user_metadata?.nom || "";
-
-  conteneur.innerHTML = `
-    <h2 class="titre-section">Accueil</h2>
-    <hr class="trait-or" />
-    <p style="color:var(--texte-secondaire)">Bienvenue${nom ? " " + nom : ""}.</p>
-    <p class="chargement">Chargement…</p>
-  `;
-
-  const [{ data: capital }, { data: cyclesOuverts }, { count: membresActifs }, { data: dernieresPublications }] =
-    await Promise.all([
-      supabase.from("capital_cotisation").select("total").maybeSingle(),
-      supabase.from("tontine_cycles").select("nom").eq("statut", "ouvert").order("demarre_le", { ascending: false }),
-      supabase.from("profils").select("id", { count: "exact", head: true }).eq("actif", true),
-      supabase.from("publications").select("id, texte, cree_le").order("cree_le", { ascending: false }).limit(3),
-    ]);
-
-  const texteCycle = !cyclesOuverts || !cyclesOuverts.length
-    ? "Aucun cycle en cours"
-    : cyclesOuverts.length === 1
-      ? cyclesOuverts[0].nom
-      : `${cyclesOuverts.length} cycles en cours`;
-
-  conteneur.innerHTML = `
-    <h2 class="titre-section">Accueil</h2>
-    <hr class="trait-or" />
-    <p style="color:var(--texte-secondaire)">Bienvenue${nom ? " " + nom : ""}.</p>
-    <div class="carte">
-      <p style="color:var(--texte-secondaire); font-size:13px; margin:0 0 4px">Capital cotisation</p>
-      <p style="font-family:var(--police-titre); font-size:28px; margin:0">${Number(capital?.total || 0).toLocaleString("fr-FR")} FCFA</p>
-    </div>
-    <div class="carte">
-      <p style="color:var(--texte-secondaire); font-size:13px; margin:0 0 4px">Cycle de tontine en cours</p>
-      <p style="margin:0">${texteCycle}</p>
-    </div>
-    <div class="carte">
-      <p style="color:var(--texte-secondaire); font-size:13px; margin:0 0 4px">Membres actifs</p>
-      <p style="margin:0">${membresActifs || 0}</p>
-    </div>
-    ${
-      dernieresPublications && dernieresPublications.length
-        ? `<p style="font-weight:500; margin:20px 0 8px">Dernières publications</p>` +
-          dernieresPublications
-            .map(
-              (p) => `
-          <div class="carte">
-            <p style="margin:0; font-size:14px">${p.texte ? p.texte.slice(0, 120) + (p.texte.length > 120 ? "…" : "") : "(média)"}</p>
-          </div>
-        `
-            )
-            .join("")
-        : ""
-    }
-  `;
-}
 
 function ecranProvisoire(titre) {
   return async (conteneur) => {
@@ -117,7 +58,6 @@ const routes = {
   "membres/profil": ecranMonProfil,
   "membres/messagerie": ecranMessagerie,
   "a-propos": ecranAPropos,
-  "fondateurs": ecranFondateurs,
   "admin/tableau-de-bord": ecranAdminTableauBord,
   "admin/membres": ecranAdminMembres,
   "admin/cotisations": ecranAdminCotisations,
@@ -153,4 +93,4 @@ export function initialiserRouteur() {
 
   const routeInitiale = window.location.hash.replace("#", "") || "accueil";
   naviguerVers(routeInitiale);
-    }
+        }
