@@ -1,0 +1,263 @@
+/* =========================================================
+   CEAI — Styles modernes (tableaux de bord, onglets)
+   Fichier AJOUTÉ à côté de style.css : il réutilise les
+   variables existantes (thème clair/sombre) avec des valeurs
+   de secours au cas où l'une manquerait.
+   ========================================================= */
+
+/* ---------- Accueil : en-tête ---------- */
+.accueil-salut {
+  font-family: var(--police-titre, inherit);
+  font-size: 20px;
+  margin: 16px 0 2px;
+}
+.accueil-sous-titre {
+  font-size: 13px;
+  color: var(--texte-secondaire);
+  margin: 0 0 18px;
+}
+
+/* ---------- Cartes de statistiques ---------- */
+.grille-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+@media (min-width: 760px) {
+  .grille-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.carte-stat {
+  position: relative;
+  overflow: hidden;
+  min-height: 124px;
+  padding: 16px;
+  border-radius: 18px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.carte-stat[data-aller] {
+  cursor: pointer;
+}
+.carte-stat[data-aller]:hover,
+.carte-stat[data-aller]:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.26);
+  outline: none;
+}
+
+.carte-stat-icone {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: grid;
+  place-items: center;
+}
+.carte-stat-filigrane {
+  position: absolute;
+  right: -14px;
+  bottom: -18px;
+  opacity: 0.13;
+  pointer-events: none;
+}
+.carte-stat-libelle {
+  margin: 0;
+  max-width: calc(100% - 44px);
+  font-size: 12px;
+  opacity: 0.92;
+}
+.carte-stat-valeur {
+  margin: 6px 0 0;
+  font-family: var(--police-titre, inherit);
+  font-size: 22px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.carte-stat-note {
+  position: relative;
+  margin: 0;
+  font-size: 11px;
+  opacity: 0.88;
+}
+
+.degrade-bleu   { background: linear-gradient(135deg, #1d4f91, #2f7bd0); }
+.degrade-vert   { background: linear-gradient(135deg, #13693f, #27a367); }
+.degrade-or     { background: linear-gradient(135deg, #8f6410, #d4a23c); }
+.degrade-violet { background: linear-gradient(135deg, #5b2f93, #8a58c9); }
+.degrade-rouge  { background: linear-gradient(135deg, #9b2c2c, #d65353); }
+
+/* ---------- Panneaux (activités, publications) ---------- */
+.grille-panneaux {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+@media (min-width: 760px) {
+  .grille-panneaux {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.panneau-tableau {
+  background: var(--fond-carte, var(--fond-carte-claire, rgba(255, 255, 255, 0.04)));
+  border: 1px solid var(--bordure);
+  border-radius: 18px;
+  padding: 16px 18px;
+}
+.panneau-tableau-titre {
+  margin: 0 0 8px;
+  font-weight: 500;
+  font-size: 15px;
+}
+.panneau-vide {
+  margin: 18px 0 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--texte-secondaire);
+}
+
+.activite {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--bordure);
+}
+.activite:first-of-type {
+  border-top: 0;
+}
+.activite-point {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--or-texte);
+}
+.activite-texte {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.activite-date {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--texte-secondaire);
+}
+
+/* ---------- Onglets (page À propos) ---------- */
+.onglets {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  margin-bottom: 16px;
+  border: 1px solid var(--bordure);
+  border-radius: 14px;
+  background: var(--fond-carte, rgba(255, 255, 255, 0.04));
+}
+.onglet {
+  flex: 1;
+  padding: 10px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--texte-secondaire);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.onglet.actif {
+  background: var(--fond-carte-claire, rgba(255, 255, 255, 0.08));
+  border-color: var(--or-texte);
+  color: var(--or-texte);
+}
+
+/* ---------- Panneau pleine largeur ---------- */
+@media (min-width: 760px) {
+  .panneau-large {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------- Prochain bénéficiaire ---------- */
+.beneficiaire {
+  text-align: center;
+  padding: 10px 0 6px;
+  border-top: 1px solid var(--bordure);
+}
+.beneficiaire:first-of-type {
+  border-top: 0;
+}
+.avatar-initiales {
+  width: 64px;
+  height: 64px;
+  margin: 4px auto 10px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1d4f91, #2f7bd0);
+  color: #fff;
+  font-family: var(--police-titre, inherit);
+  font-size: 22px;
+}
+.avatar-initiales img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.beneficiaire-nom {
+  margin: 0;
+  font-weight: 500;
+}
+.beneficiaire-detail {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--texte-secondaire);
+}
+
+/* ---------- Liste "À traiter" ---------- */
+.ligne-traiter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--bordure);
+  font-size: 14px;
+  cursor: pointer;
+}
+.ligne-traiter:first-of-type {
+  border-top: 0;
+}
+.ligne-traiter:focus-visible {
+  outline: 1px solid var(--or-texte);
+  outline-offset: 2px;
+}
+.compteur {
+  min-width: 28px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--fond-carte-claire, rgba(255, 255, 255, 0.08));
+  color: var(--texte-secondaire);
+}
+.compteur-urgent {
+  background: #d65353;
+  color: #fff;
+  }
