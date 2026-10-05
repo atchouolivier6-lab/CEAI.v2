@@ -186,4 +186,141 @@ export function panneauATraiter(lignes) {
       <p class="panneau-tableau-titre">À traiter</p>
       ${corps}
     </div>`;
+}
+
+// ---------------------------------------------------------
+// Thèmes des sessions de cotisation et des cycles de tontine
+// L'admin choisit un thème dans la palette, ou deux couleurs libres
+// (enregistrées sous la forme "perso:#rrggbb:#rrggbb").
+// ---------------------------------------------------------
+export const THEMES_OUVERTURE = {
+  emeraude: { libelle: "Émeraude", c1: "#13693f", c2: "#27a367" },
+  ocean: { libelle: "Océan", c1: "#1d4f91", c2: "#2f7bd0" },
+  or: { libelle: "Or", c1: "#8f6410", c2: "#d4a23c" },
+  violet: { libelle: "Violet", c1: "#5b2f93", c2: "#8a58c9" },
+  rubis: { libelle: "Rubis", c1: "#9b2c2c", c2: "#d65353" },
+  turquoise: { libelle: "Turquoise", c1: "#0f6b73", c2: "#27b0b8" },
+  corail: { libelle: "Corail", c1: "#b4472a", c2: "#e8845f" },
+  ardoise: { libelle: "Ardoise", c1: "#2f3e4e", c2: "#566b80" },
+};
+export const THEME_PAR_DEFAUT = "emeraude";
+const MOTIF_THEME_PERSO = /^perso:#[0-9a-fA-F]{6}:#[0-9a-fA-F]{6}$/;
+
+export function resoudreTheme(cle) {
+  if (THEMES_OUVERTURE[cle]) return THEMES_OUVERTURE[cle];
+  if (typeof cle === "string" && MOTIF_THEME_PERSO.test(cle)) {
+    const [, c1, c2] = cle.split(":");
+    return { libelle: "Libre", c1, c2 };
   }
+  return THEMES_OUVERTURE[THEME_PAR_DEFAUT];
+}
+
+export function styleTheme(cle) {
+  const theme = resoudreTheme(cle);
+  return `--c1:${theme.c1}; --c2:${theme.c2};`;
+}
+
+const BULLES = '<span class="ouverture-bulle ouverture-bulle-a"></span><span class="ouverture-bulle ouverture-bulle-b"></span>';
+
+// Carte d'une session / d'un cycle, avec fond dégradé légèrement animé.
+// attributs : attributs HTML sûrs (ex. data-session="..."), classes : classes CSS en plus
+export function carteOuverture({ nom, theme, details = [], badge = "", attributs = "", classes = "" }) {
+  return `
+    <div class="carte-ouverture ${classes}" style="${styleTheme(theme)}" ${attributs}>
+      ${BULLES}
+      <div class="ouverture-entete">
+        <p class="ouverture-nom">${echapper(nom)}</p>
+        ${badge ? `<span class="ouverture-badge">${echapper(badge)}</span>` : ""}
+      </div>
+      ${details.length ? `<div class="ouverture-details">${details.map((d) => `<p>${echapper(d)}</p>`).join("")}</div>` : ""}
+    </div>`;
+}
+
+// Rend les cartes cliquables : quandChoisie(valeurDeLAttribut, carte)
+export function activerCartesOuverture(conteneur, attribut, quandChoisie) {
+  conteneur.querySelectorAll(`[${attribut}]`).forEach((carte) => {
+    const choisir = () => quandChoisie(carte.getAttribute(attribut), carte);
+    carte.addEventListener("click", choisir);
+    carte.addEventListener("keydown", (evenement) => {
+      if (evenement.key === "Enter" || evenement.key === " ") {
+        evenement.preventDefault();
+        choisir();
+      }
+    });
+  });
+}
+
+// ---------------------------------------------------------
+// Sélecteur de thème (à placer dans un <form>)
+// ---------------------------------------------------------
+export function selecteurTheme(valeur = THEME_PAR_DEFAUT) {
+  const estLibre = typeof valeur === "string" && MOTIF_THEME_PERSO.test(valeur);
+  const [, couleur1, couleur2] = estLibre ? valeur.split(":") : [null, "#13693f", "#27a367"];
+  const choisi = estLibre ? "libre" : THEMES_OUVERTURE[valeur] ? valeur : THEME_PAR_DEFAUT;
+
+  const pastilles = Object.entries(THEMES_OUVERTURE)
+    .map(
+      ([cle, t]) => `
+    <label class="pastille-theme">
+      <input type="radio" name="theme" value="${cle}" ${choisi === cle ? "checked" : ""} />
+      <span class="pastille-theme-pastille" style="--c1:${t.c1}; --c2:${t.c2}"></span>
+      <em>${t.libelle}</em>
+    </label>`
+    )
+    .join("");
+
+  return `
+    <div class="selecteur-theme">
+      <p class="selecteur-theme-titre">Thème</p>
+      <div class="selecteur-theme-liste">
+        ${pastilles}
+        <label class="pastille-theme">
+          <input type="radio" name="theme" value="libre" ${choisi === "libre" ? "checked" : ""} />
+          <span class="pastille-theme-pastille pastille-libre" style="--c1:${couleur1}; --c2:${couleur2}">+</span>
+          <em>Libre</em>
+        </label>
+      </div>
+      <div class="selecteur-theme-libre" ${choisi === "libre" ? "" : "hidden"}>
+        <label>Couleur 1 <input type="color" name="couleur1" value="${couleur1}" /></label>
+        <label>Couleur 2 <input type="color" name="couleur2" value="${couleur2}" /></label>
+        <p class="selecteur-theme-aide">Choisissez des couleurs assez foncées pour que le texte reste lisible.</p>
+      </div>
+      <div class="carte-ouverture apercu-theme" style="${styleTheme(valeur)}">
+        ${BULLES}
+        <div class="ouverture-entete"><p class="ouverture-nom">Aperçu du thème</p></div>
+      </div>
+    </div>`;
+}
+
+// Lit le thème choisi dans un formulaire contenant selecteurTheme()
+export function lireTheme(formulaire) {
+  const choix = formulaire.querySelector('input[name="theme"]:checked')?.value || THEME_PAR_DEFAUT;
+  if (choix === "libre") {
+    const c1 = formulaire.querySelector('input[name="couleur1"]').value.toLowerCase();
+    const c2 = formulaire.querySelector('input[name="couleur2"]').value.toLowerCase();
+    return `perso:${c1}:${c2}`;
+  }
+  return THEMES_OUVERTURE[choix] ? choix : THEME_PAR_DEFAUT;
+}
+
+// Branche l'aperçu en direct et l'affichage des couleurs libres
+export function activerSelecteurTheme(formulaire) {
+  const apercu = formulaire.querySelector(".apercu-theme");
+  const zoneLibre = formulaire.querySelector(".selecteur-theme-libre");
+  const pastilleLibre = formulaire.querySelector(".pastille-libre");
+
+  const mettreAJour = () => {
+    const theme = resoudreTheme(lireTheme(formulaire));
+    apercu.style.setProperty("--c1", theme.c1);
+    apercu.style.setProperty("--c2", theme.c2);
+    zoneLibre.hidden = formulaire.querySelector('input[name="theme"]:checked')?.value !== "libre";
+    pastilleLibre.style.setProperty("--c1", formulaire.querySelector('input[name="couleur1"]').value);
+    pastilleLibre.style.setProperty("--c2", formulaire.querySelector('input[name="couleur2"]').value);
+  };
+
+  formulaire.querySelectorAll('input[name="theme"], input[type="color"]').forEach((champ) => {
+    champ.addEventListener("input", mettreAJour);
+    champ.addEventListener("change", mettreAJour);
+  });
+  mettreAJour();
+}
