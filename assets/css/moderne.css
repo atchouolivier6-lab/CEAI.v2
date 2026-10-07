@@ -1,326 +1,962 @@
-// =========================================================
-// CEAI — Composants visuels des tableaux de bord
-// Utilisés par l'Accueil et (ensuite) par le Tableau de bord admin.
-// Les styles correspondants sont dans assets/css/moderne.css
-// =========================================================
+/* =========================================================
+   CEAI — Styles modernes (tableaux de bord, onglets)
+   Fichier AJOUTÉ à côté de style.css : il réutilise les
+   variables existantes (thème clair/sombre) avec des valeurs
+   de secours au cas où l'une manquerait.
+   ========================================================= */
 
-import { supabase } from "../supabase-client.js";
-
-// Icônes en traits fins (aucune dépendance, couleur héritée du texte)
-const ICONES = {
-  membres:
-    '<path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M21 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
-  cotisation: '<rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/>',
-  epargne:
-    '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
-  tontine:
-    '<path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
-  pret: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',
-  calendrier: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
-  alerte:
-    '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
-  tendance: '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
-};
-
-export function icone(nom, taille = 20) {
-  return `<svg viewBox="0 0 24 24" width="${taille}" height="${taille}" fill="none" stroke="currentColor"
-    stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[nom] || ""}</svg>`;
+/* ---------- Accueil : en-tête ---------- */
+.accueil-salut {
+  font-family: var(--police-titre, inherit);
+  font-size: 20px;
+  margin: 16px 0 2px;
+}
+.accueil-sous-titre {
+  font-size: 13px;
+  color: var(--texte-secondaire);
+  margin: 0 0 18px;
 }
 
-// Protège l'affichage des textes venant de la base
-export function echapper(texte) {
-  return String(texte ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+/* ---------- Cartes de statistiques ---------- */
+.grille-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
 }
-
-export function formaterMontant(montant) {
-  return `${Number(montant || 0).toLocaleString("fr-FR")} FCFA`;
-}
-
-// "il y a 5 min", "il y a 3 h", "il y a 2 j", puis la date complète
-export function tempsRelatif(dateIso) {
-  const secondes = Math.max(0, (Date.now() - new Date(dateIso).getTime()) / 1000);
-  if (secondes < 60) return "à l'instant";
-  const minutes = Math.floor(secondes / 60);
-  if (minutes < 60) return `il y a ${minutes} min`;
-  const heures = Math.floor(minutes / 60);
-  if (heures < 24) return `il y a ${heures} h`;
-  const jours = Math.floor(heures / 24);
-  if (jours < 7) return `il y a ${jours} j`;
-  return new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
-}
-
-// couleur : bleu | vert | or | violet | rouge
-// aller (facultatif) : route vers laquelle la carte renvoie au clic
-export function carteStat({ libelle, valeur, note = "", icone: nomIcone, couleur = "bleu", aller = "" }) {
-  return `
-    <div class="carte-stat degrade-${couleur}" ${aller ? `data-aller="${aller}" role="link" tabindex="0"` : ""}>
-      <span class="carte-stat-filigrane">${icone(nomIcone, 96)}</span>
-      <span class="carte-stat-icone">${icone(nomIcone, 18)}</span>
-      <div>
-        <p class="carte-stat-libelle">${echapper(libelle)}</p>
-        <p class="carte-stat-valeur">${valeur}</p>
-      </div>
-      ${note ? `<p class="carte-stat-note">${echapper(note)}</p>` : ""}
-    </div>`;
-}
-
-export function grilleStats(cartes) {
-  return `<div class="grille-stats">${cartes.join("")}</div>`;
-}
-
-// Fait fonctionner les cartes cliquables (attribut data-aller)
-export function activerCartesCliquables(conteneur) {
-  conteneur.querySelectorAll("[data-aller]").forEach((carte) => {
-    const aller = () => window.dispatchEvent(new CustomEvent("ceai:naviguer", { detail: carte.dataset.aller }));
-    carte.addEventListener("click", aller);
-    carte.addEventListener("keydown", (evenement) => {
-      if (evenement.key === "Enter") aller();
-    });
-  });
-}
-
-// Bloc "Activités récentes" : liste de { texte, cree_le }
-export function panneauActivites(titre, activites) {
-  const lignes = activites.length
-    ? activites
-        .map(
-          (a) => `
-      <div class="activite">
-        <span class="activite-point"></span>
-        <div>
-          <p class="activite-texte">${echapper(a.texte)}</p>
-          <p class="activite-date">${tempsRelatif(a.cree_le)}</p>
-        </div>
-      </div>`
-        )
-        .join("")
-    : `<p class="panneau-vide">Aucune activité récente</p>`;
-
-  return `
-    <div class="panneau-tableau">
-      <p class="panneau-tableau-titre">${echapper(titre)}</p>
-      ${lignes}
-    </div>`;
-}
-
-// ---------------------------------------------------------
-// Prochain bénéficiaire de la tontine
-// ---------------------------------------------------------
-export async function chargerProchainsBeneficiaires() {
-  const { data: cycles } = await supabase
-    .from("tontine_cycles")
-    .select("id, nom, montant_mensuel")
-    .eq("statut", "ouvert")
-    .order("demarre_le", { ascending: false });
-
-  const liste = cycles || [];
-  if (!liste.length) return { cycles: [], beneficiaires: [] };
-
-  const { data: participants } = await supabase
-    .from("tontine_participants")
-    .select("cycle_id, ordre_tour, a_recu, profils(nom, photo_url)")
-    .in("cycle_id", liste.map((c) => c.id))
-    .order("ordre_tour");
-
-  const beneficiaires = liste.map((cycle) => {
-    const duCycle = (participants || []).filter((p) => p.cycle_id === cycle.id);
-    return { cycle, prochain: duCycle.find((p) => !p.a_recu), total: duCycle.length };
-  });
-
-  return { cycles: liste, beneficiaires };
-}
-
-function initiale(nom) {
-  return (nom || "?").trim().charAt(0).toUpperCase();
-}
-
-export function panneauBeneficiaire({ beneficiaires }) {
-  const contenu = !beneficiaires.length
-    ? `<p class="panneau-vide">Aucun cycle de tontine ouvert</p>`
-    : beneficiaires
-        .map(({ cycle, prochain, total }) => {
-          if (!prochain) {
-            return `
-        <div class="beneficiaire">
-          <p class="beneficiaire-nom">${echapper(cycle.nom)}</p>
-          <p class="beneficiaire-detail">Tous les membres ont déjà reçu leur tour</p>
-        </div>`;
-          }
-          const nom = prochain.profils?.nom || "—";
-          const photo = prochain.profils?.photo_url;
-          return `
-        <div class="beneficiaire">
-          <div class="avatar-initiales">
-            ${photo ? `<img src="${echapper(photo)}" alt="" />` : echapper(initiale(nom))}
-          </div>
-          <p class="beneficiaire-nom">${echapper(nom)}</p>
-          <p class="beneficiaire-detail">${echapper(cycle.nom)} · Position ${prochain.ordre_tour} sur ${total}</p>
-          <p class="beneficiaire-detail">${formaterMontant(cycle.montant_mensuel)} par mois</p>
-        </div>`;
-        })
-        .join("");
-
-  return `
-    <div class="panneau-tableau">
-      <p class="panneau-tableau-titre">Prochain bénéficiaire</p>
-      ${contenu}
-    </div>`;
-}
-
-// ---------------------------------------------------------
-// Bloc "À traiter" (admin) : lignes { libelle, nombre, aller }
-// ---------------------------------------------------------
-export function panneauATraiter(lignes) {
-  const corps = lignes
-    .map(
-      (l) => `
-    <div class="ligne-traiter" data-aller="${l.aller}" role="link" tabindex="0">
-      <span>${echapper(l.libelle)}</span>
-      <span class="compteur ${l.nombre > 0 ? "compteur-urgent" : ""}">${l.nombre}</span>
-    </div>`
-    )
-    .join("");
-
-  return `
-    <div class="panneau-tableau panneau-large">
-      <p class="panneau-tableau-titre">À traiter</p>
-      ${corps}
-    </div>`;
-}
-
-// ---------------------------------------------------------
-// Thèmes des sessions de cotisation et des cycles de tontine
-// L'admin choisit un thème dans la palette, ou deux couleurs libres
-// (enregistrées sous la forme "perso:#rrggbb:#rrggbb").
-// ---------------------------------------------------------
-export const THEMES_OUVERTURE = {
-  emeraude: { libelle: "Émeraude", c1: "#13693f", c2: "#27a367" },
-  ocean: { libelle: "Océan", c1: "#1d4f91", c2: "#2f7bd0" },
-  or: { libelle: "Or", c1: "#8f6410", c2: "#d4a23c" },
-  violet: { libelle: "Violet", c1: "#5b2f93", c2: "#8a58c9" },
-  rubis: { libelle: "Rubis", c1: "#9b2c2c", c2: "#d65353" },
-  turquoise: { libelle: "Turquoise", c1: "#0f6b73", c2: "#27b0b8" },
-  corail: { libelle: "Corail", c1: "#b4472a", c2: "#e8845f" },
-  ardoise: { libelle: "Ardoise", c1: "#2f3e4e", c2: "#566b80" },
-};
-export const THEME_PAR_DEFAUT = "emeraude";
-const MOTIF_THEME_PERSO = /^perso:#[0-9a-fA-F]{6}:#[0-9a-fA-F]{6}$/;
-
-export function resoudreTheme(cle) {
-  if (THEMES_OUVERTURE[cle]) return THEMES_OUVERTURE[cle];
-  if (typeof cle === "string" && MOTIF_THEME_PERSO.test(cle)) {
-    const [, c1, c2] = cle.split(":");
-    return { libelle: "Libre", c1, c2 };
+@media (min-width: 760px) {
+  .grille-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  return THEMES_OUVERTURE[THEME_PAR_DEFAUT];
 }
 
-export function styleTheme(cle) {
-  const theme = resoudreTheme(cle);
-  return `--c1:${theme.c1}; --c2:${theme.c2};`;
+.carte-stat {
+  position: relative;
+  overflow: hidden;
+  min-height: 124px;
+  padding: 16px;
+  border-radius: 18px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.carte-stat[data-aller] {
+  cursor: pointer;
+}
+.carte-stat[data-aller]:hover,
+.carte-stat[data-aller]:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.26);
+  outline: none;
 }
 
-const BULLES = '<span class="ouverture-bulle ouverture-bulle-a"></span><span class="ouverture-bulle ouverture-bulle-b"></span>';
-
-// Carte d'une session / d'un cycle, avec fond dégradé légèrement animé.
-// attributs : attributs HTML sûrs (ex. data-session="..."), classes : classes CSS en plus
-export function carteOuverture({ nom, theme, details = [], badge = "", attributs = "", classes = "" }) {
-  return `
-    <div class="carte-ouverture ${classes}" style="${styleTheme(theme)}" ${attributs}>
-      ${BULLES}
-      <div class="ouverture-entete">
-        <p class="ouverture-nom">${echapper(nom)}</p>
-        ${badge ? `<span class="ouverture-badge">${echapper(badge)}</span>` : ""}
-      </div>
-      ${details.length ? `<div class="ouverture-details">${details.map((d) => `<p>${echapper(d)}</p>`).join("")}</div>` : ""}
-    </div>`;
+.carte-stat-icone {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: grid;
+  place-items: center;
+}
+.carte-stat-filigrane {
+  position: absolute;
+  right: -14px;
+  bottom: -18px;
+  opacity: 0.13;
+  pointer-events: none;
+}
+.carte-stat-libelle {
+  margin: 0;
+  max-width: calc(100% - 44px);
+  font-size: 12px;
+  opacity: 0.92;
+}
+.carte-stat-valeur {
+  margin: 6px 0 0;
+  font-family: var(--police-titre, inherit);
+  font-size: 22px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.carte-stat-note {
+  position: relative;
+  margin: 0;
+  font-size: 11px;
+  opacity: 0.88;
 }
 
-// Rend les cartes cliquables : quandChoisie(valeurDeLAttribut, carte)
-export function activerCartesOuverture(conteneur, attribut, quandChoisie) {
-  conteneur.querySelectorAll(`[${attribut}]`).forEach((carte) => {
-    const choisir = () => quandChoisie(carte.getAttribute(attribut), carte);
-    carte.addEventListener("click", choisir);
-    carte.addEventListener("keydown", (evenement) => {
-      if (evenement.key === "Enter" || evenement.key === " ") {
-        evenement.preventDefault();
-        choisir();
-      }
-    });
-  });
+.degrade-bleu   { background: linear-gradient(135deg, #1d4f91, #2f7bd0); }
+.degrade-vert   { background: linear-gradient(135deg, #13693f, #27a367); }
+.degrade-or     { background: linear-gradient(135deg, #8f6410, #d4a23c); }
+.degrade-violet { background: linear-gradient(135deg, #5b2f93, #8a58c9); }
+.degrade-rouge  { background: linear-gradient(135deg, #9b2c2c, #d65353); }
+
+/* ---------- Panneaux (activités, publications) ---------- */
+.grille-panneaux {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
 }
-
-// ---------------------------------------------------------
-// Sélecteur de thème (à placer dans un <form>)
-// ---------------------------------------------------------
-export function selecteurTheme(valeur = THEME_PAR_DEFAUT) {
-  const estLibre = typeof valeur === "string" && MOTIF_THEME_PERSO.test(valeur);
-  const [, couleur1, couleur2] = estLibre ? valeur.split(":") : [null, "#13693f", "#27a367"];
-  const choisi = estLibre ? "libre" : THEMES_OUVERTURE[valeur] ? valeur : THEME_PAR_DEFAUT;
-
-  const pastilles = Object.entries(THEMES_OUVERTURE)
-    .map(
-      ([cle, t]) => `
-    <label class="pastille-theme">
-      <input type="radio" name="theme" value="${cle}" ${choisi === cle ? "checked" : ""} />
-      <span class="pastille-theme-pastille" style="--c1:${t.c1}; --c2:${t.c2}"></span>
-      <em>${t.libelle}</em>
-    </label>`
-    )
-    .join("");
-
-  return `
-    <div class="selecteur-theme">
-      <p class="selecteur-theme-titre">Thème</p>
-      <div class="selecteur-theme-liste">
-        ${pastilles}
-        <label class="pastille-theme">
-          <input type="radio" name="theme" value="libre" ${choisi === "libre" ? "checked" : ""} />
-          <span class="pastille-theme-pastille pastille-libre" style="--c1:${couleur1}; --c2:${couleur2}">+</span>
-          <em>Libre</em>
-        </label>
-      </div>
-      <div class="selecteur-theme-libre" ${choisi === "libre" ? "" : "hidden"}>
-        <label>Couleur 1 <input type="color" name="couleur1" value="${couleur1}" /></label>
-        <label>Couleur 2 <input type="color" name="couleur2" value="${couleur2}" /></label>
-        <p class="selecteur-theme-aide">Choisissez des couleurs assez foncées pour que le texte reste lisible.</p>
-      </div>
-      <div class="carte-ouverture apercu-theme" style="${styleTheme(valeur)}">
-        ${BULLES}
-        <div class="ouverture-entete"><p class="ouverture-nom">Aperçu du thème</p></div>
-      </div>
-    </div>`;
-}
-
-// Lit le thème choisi dans un formulaire contenant selecteurTheme()
-export function lireTheme(formulaire) {
-  const choix = formulaire.querySelector('input[name="theme"]:checked')?.value || THEME_PAR_DEFAUT;
-  if (choix === "libre") {
-    const c1 = formulaire.querySelector('input[name="couleur1"]').value.toLowerCase();
-    const c2 = formulaire.querySelector('input[name="couleur2"]').value.toLowerCase();
-    return `perso:${c1}:${c2}`;
+@media (min-width: 760px) {
+  .grille-panneaux {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  return THEMES_OUVERTURE[choix] ? choix : THEME_PAR_DEFAUT;
 }
 
-// Branche l'aperçu en direct et l'affichage des couleurs libres
-export function activerSelecteurTheme(formulaire) {
-  const apercu = formulaire.querySelector(".apercu-theme");
-  const zoneLibre = formulaire.querySelector(".selecteur-theme-libre");
-  const pastilleLibre = formulaire.querySelector(".pastille-libre");
-
-  const mettreAJour = () => {
-    const theme = resoudreTheme(lireTheme(formulaire));
-    apercu.style.setProperty("--c1", theme.c1);
-    apercu.style.setProperty("--c2", theme.c2);
-    zoneLibre.hidden = formulaire.querySelector('input[name="theme"]:checked')?.value !== "libre";
-    pastilleLibre.style.setProperty("--c1", formulaire.querySelector('input[name="couleur1"]').value);
-    pastilleLibre.style.setProperty("--c2", formulaire.querySelector('input[name="couleur2"]').value);
-  };
-
-  formulaire.querySelectorAll('input[name="theme"], input[type="color"]').forEach((champ) => {
-    champ.addEventListener("input", mettreAJour);
-    champ.addEventListener("change", mettreAJour);
-  });
-  mettreAJour();
+.panneau-tableau {
+  background: var(--fond-carte, var(--fond-carte-claire, rgba(255, 255, 255, 0.04)));
+  border: 1px solid var(--bordure);
+  border-radius: 18px;
+  padding: 16px 18px;
 }
+.panneau-tableau-titre {
+  margin: 0 0 8px;
+  font-weight: 500;
+  font-size: 15px;
+}
+.panneau-vide {
+  margin: 18px 0 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--texte-secondaire);
+}
+
+.activite {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--bordure);
+}
+.activite:first-of-type {
+  border-top: 0;
+}
+.activite-point {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--or-texte);
+}
+.activite-texte {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.activite-date {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--texte-secondaire);
+}
+
+/* ---------- Onglets (page À propos) ---------- */
+.onglets {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  margin-bottom: 16px;
+  border: 1px solid var(--bordure);
+  border-radius: 14px;
+  background: var(--fond-carte, rgba(255, 255, 255, 0.04));
+}
+.onglet {
+  flex: 1;
+  padding: 10px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--texte-secondaire);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.onglet.actif {
+  background: var(--fond-carte-claire, rgba(255, 255, 255, 0.08));
+  border-color: var(--or-texte);
+  color: var(--or-texte);
+}
+
+/* ---------- Panneau pleine largeur ---------- */
+@media (min-width: 760px) {
+  .panneau-large {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------- Prochain bénéficiaire ---------- */
+.beneficiaire {
+  text-align: center;
+  padding: 10px 0 6px;
+  border-top: 1px solid var(--bordure);
+}
+.beneficiaire:first-of-type {
+  border-top: 0;
+}
+.avatar-initiales {
+  width: 64px;
+  height: 64px;
+  margin: 4px auto 10px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1d4f91, #2f7bd0);
+  color: #fff;
+  font-family: var(--police-titre, inherit);
+  font-size: 22px;
+}
+.avatar-initiales img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.beneficiaire-nom {
+  margin: 0;
+  font-weight: 500;
+}
+.beneficiaire-detail {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--texte-secondaire);
+}
+
+/* ---------- Liste "À traiter" ---------- */
+.ligne-traiter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--bordure);
+  font-size: 14px;
+  cursor: pointer;
+}
+.ligne-traiter:first-of-type {
+  border-top: 0;
+}
+.ligne-traiter:focus-visible {
+  outline: 1px solid var(--or-texte);
+  outline-offset: 2px;
+}
+.compteur {
+  min-width: 28px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--fond-carte-claire, rgba(255, 255, 255, 0.08));
+  color: var(--texte-secondaire);
+}
+.compteur-urgent {
+  background: #d65353;
+  color: #fff;
+}
+
+/* =========================================================
+   Ouvertures (sessions de cotisation, cycles de tontine)
+   Fond en dégradé qui dérive très lentement + deux bulles
+   douces qui flottent. Couleurs fournies par --t1/--t2/--t3.
+   ========================================================= */
+.liste-ouvertures {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+@media (min-width: 760px) {
+  .liste-ouvertures {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.carte-ouverture {
+  position: relative;
+  overflow: hidden;
+  padding: 20px 18px;
+  border-radius: 20px;
+  color: #fff;
+  background: linear-gradient(120deg, var(--t1), var(--t2), var(--t3), var(--t1));
+  background-size: 300% 300%;
+  animation: ouverture-derive 24s ease-in-out infinite;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.carte-ouverture[data-session],
+.carte-ouverture[data-cycle],
+.carte-ouverture[data-basculer] {
+  cursor: pointer;
+}
+.carte-ouverture[data-session]:hover,
+.carte-ouverture[data-cycle]:hover,
+.carte-ouverture[data-basculer]:hover,
+.carte-ouverture:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
+  outline: none;
+}
+.carte-ouverture.selectionnee {
+  outline: 2px solid var(--or-texte);
+  outline-offset: 3px;
+}
+
+.ouverture-bulle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  filter: blur(2px);
+  pointer-events: none;
+}
+.ouverture-bulle-1 {
+  width: 150px;
+  height: 150px;
+  top: -50px;
+  right: -36px;
+  animation: ouverture-flotte 18s ease-in-out infinite;
+}
+.ouverture-bulle-2 {
+  width: 100px;
+  height: 100px;
+  bottom: -34px;
+  left: 34%;
+  animation: ouverture-flotte 23s ease-in-out infinite reverse;
+}
+
+.ouverture-contenu {
+  position: relative;
+}
+.ouverture-tete {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ouverture-titre {
+  margin: 0;
+  font-family: var(--police-titre, inherit);
+  font-size: 20px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.ouverture-badge {
+  flex: none;
+  padding: 2px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.ouverture-sous-titre {
+  margin: 6px 0 0;
+  font-size: 13px;
+  opacity: 0.92;
+}
+.ouverture-pied {
+  margin-top: 14px;
+  font-size: 12px;
+}
+.ouverture-action {
+  display: inline-block;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 13px;
+  font-weight: 500;
+}
+.ouverture-note {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+.ouverture-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12px;
+  opacity: 0.95;
+}
+.ouverture-stats strong {
+  font-size: 14px;
+}
+
+.ouverture-details {
+  margin: 8px 0 14px;
+}
+
+@keyframes ouverture-derive {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes ouverture-flotte {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-16px, 14px) scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .carte-ouverture,
+  .ouverture-bulle {
+    animation: none;
+  }
+}
+
+/* ---------- Sélecteur de thème (formulaires admin) ---------- */
+.selecteur-theme-titre {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--texte-secondaire);
+}
+.pastilles-theme {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.pastille-theme {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 64px;
+  cursor: pointer;
+}
+.pastille-theme input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.pastille-theme-visuel {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--t1), var(--t2));
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 20px;
+}
+.pastille-theme input:checked + .pastille-theme-visuel {
+  outline: 2px solid var(--or-texte);
+  outline-offset: 3px;
+}
+.pastille-theme input:focus-visible + .pastille-theme-visuel {
+  outline: 2px dashed var(--or-texte);
+  outline-offset: 3px;
+}
+.pastille-theme-nom {
+  font-size: 11px;
+  text-align: center;
+  color: var(--texte-secondaire);
+  line-height: 1.2;
+}
+.theme-perso {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--texte-secondaire);
+}
+.theme-perso label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.theme-perso input[type="color"] {
+  width: 44px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  background: transparent;
+}
+.apercu-theme {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+.apercu-theme .ouverture-titre {
+  font-size: 15px;
+}
+
+/* ---------- Ligne de versement avec repère de couleur ---------- */
+.ligne-versement {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border-left: 4px solid var(--t2, var(--or-texte));
+}
+
+/* ---------- Tirage au sort (fenêtre plein écran) ---------- */
+.tirage-fond {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(4, 12, 8, 0.93);
+  overflow-y: auto;
+}
+.tirage-boite {
+  width: 100%;
+  max-width: 420px;
+  margin: auto;
+  text-align: center;
+  color: #f2efe6;
+}
+.tirage-etiquette {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--or-texte);
+}
+.tirage-titre {
+  margin: 0 0 14px;
+  font-family: var(--police-titre, inherit);
+  font-size: 24px;
+  line-height: 1.25;
+}
+.tirage-texte {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+.tirage-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+.tirage-actions .bouton {
+  flex: 1;
+}
+.tirage-nom-defilant {
+  margin: 28px 0;
+  min-height: 48px;
+  font-family: var(--police-titre, inherit);
+  font-size: 32px;
+  color: var(--or-texte);
+  animation: tirage-pulse 0.35s ease-in-out infinite alternate;
+}
+.tirage-resultats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 18px 0 4px;
+  text-align: left;
+}
+.tirage-ligne {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  animation: tirage-apparition 0.45s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+.tirage-rang {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--or-texte);
+  color: #1b1b1b;
+  font-weight: 600;
+}
+.tirage-ligne:first-child {
+  border-color: var(--or-texte);
+}
+.tirage-ligne:first-child .tirage-rang {
+  box-shadow: 0 0 0 5px rgba(212, 162, 60, 0.25);
+}
+@keyframes tirage-apparition {
+  from { opacity: 0; transform: translateY(14px) scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes tirage-pulse {
+  from { transform: scale(0.97); opacity: 0.75; }
+  to { transform: scale(1.03); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tirage-nom-defilant { animation: none; }
+}
+
+/* =========================================================
+   Sessions / cycles : cartes à thème, fond légèrement animé
+   ========================================================= */
+.carte-ouverture {
+  position: relative;
+  overflow: hidden;
+  padding: 16px 18px;
+  border-radius: 18px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  background: linear-gradient(135deg, var(--c1), var(--c2));
+  background-size: 170% 170%;
+  animation: ouverture-derive 18s ease-in-out infinite;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.carte-ouverture > * {
+  position: relative;
+}
+.ouverture-cliquable {
+  cursor: pointer;
+}
+.ouverture-cliquable:hover,
+.ouverture-cliquable:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.26);
+  outline: none;
+}
+.carte-ouverture.selectionnee {
+  outline: 3px solid var(--or-texte);
+  outline-offset: 2px;
+}
+
+.ouverture-bulle {
+  position: absolute !important;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+.ouverture-bulle-a {
+  width: 150px;
+  height: 150px;
+  right: -40px;
+  top: -60px;
+  animation: ouverture-flotte 17s ease-in-out infinite;
+}
+.ouverture-bulle-b {
+  width: 96px;
+  height: 96px;
+  left: 38%;
+  bottom: -50px;
+  animation: ouverture-flotte 23s ease-in-out infinite reverse;
+}
+@keyframes ouverture-derive {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes ouverture-flotte {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-16px, 12px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .carte-ouverture,
+  .ouverture-bulle {
+    animation: none;
+  }
+}
+
+.ouverture-entete {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ouverture-nom {
+  margin: 0;
+  font-family: var(--police-titre, inherit);
+  font-size: 19px;
+  line-height: 1.2;
+}
+.ouverture-badge {
+  flex: none;
+  padding: 2px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.ouverture-details {
+  margin-top: 10px;
+}
+.ouverture-details p {
+  margin: 3px 0 0;
+  font-size: 13px;
+  opacity: 0.92;
+}
+
+.grille-ouvertures {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (min-width: 760px) {
+  .grille-ouvertures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.intro-ouvertures {
+  margin: 14px 0 12px;
+  font-size: 13px;
+  color: var(--texte-secondaire);
+}
+
+/* Carte admin : en-tête à thème + corps repliable */
+.ouverture-admin {
+  margin-bottom: 14px;
+  border: 1px solid var(--bordure);
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--fond-carte, var(--fond-carte-claire, rgba(255, 255, 255, 0.04)));
+}
+.ouverture-admin > .carte-ouverture {
+  border-radius: 0;
+  box-shadow: none;
+}
+.ouverture-corps {
+  padding: 16px 18px;
+}
+
+/* Sélecteur de thème */
+.selecteur-theme-titre {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--texte-secondaire);
+}
+.selecteur-theme-liste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.pastille-theme {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.pastille-theme input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.pastille-theme-pastille {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 18px;
+  background: linear-gradient(135deg, var(--c1), var(--c2));
+}
+.pastille-theme input:checked + .pastille-theme-pastille {
+  outline: 3px solid var(--or-texte);
+  outline-offset: 2px;
+}
+.pastille-theme input:focus-visible + .pastille-theme-pastille {
+  outline: 2px dashed var(--texte);
+  outline-offset: 2px;
+}
+.pastille-theme em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--texte-secondaire);
+}
+.selecteur-theme-libre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--texte-secondaire);
+}
+.selecteur-theme-libre input[type="color"] {
+  width: 44px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  background: transparent;
+  vertical-align: middle;
+}
+.selecteur-theme-aide {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+}
+.apercu-theme {
+  padding: 14px 18px;
+}
+
+/* =========================================================
+   Tirage au sort de la tontine (fenêtre plein écran)
+   ========================================================= */
+body.tirage-ouvert {
+  overflow: hidden;
+}
+.tirage-voile {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(5, 12, 9, 0.88);
+  backdrop-filter: blur(4px);
+  animation: tirage-apparition 0.25s ease;
+}
+.tirage-panneau {
+  width: min(460px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 24px 22px;
+  border-radius: 22px;
+  text-align: center;
+  color: #f4f1e8;
+  background: linear-gradient(160deg, #17382a, #0e2219);
+  border: 1px solid rgba(212, 162, 60, 0.45);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.tirage-titre {
+  margin: 0;
+  font-family: var(--police-titre, inherit);
+  font-size: 24px;
+  color: #d4a23c;
+}
+.tirage-cycle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
+.tirage-question {
+  margin: 22px 0 10px;
+  font-family: var(--police-titre, inherit);
+  font-size: 19px;
+  line-height: 1.35;
+}
+.tirage-avertissement {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+.tirage-erreur {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: #ff9b9b;
+}
+.tirage-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+.tirage-actions .bouton {
+  flex: 1;
+}
+.tirage-bouton-secondaire {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f4f1e8;
+}
+.tirage-etat {
+  margin: 14px 0 0;
+  font-family: var(--police-titre, inherit);
+  font-size: 18px;
+}
+.tirage-machine {
+  display: grid;
+  place-items: center;
+  min-height: 88px;
+  margin: 22px 0;
+  padding: 20px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(212, 162, 60, 0.4);
+  font-family: var(--police-titre, inherit);
+  font-size: 28px;
+  color: #fff;
+  overflow-wrap: anywhere;
+  animation: tirage-pulse 1s ease-in-out infinite;
+}
+.tirage-resultats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0 0;
+  text-align: left;
+}
+.tirage-ligne {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.45);
+}
+.tirage-rang {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 13px;
+  font-weight: 600;
+}
+.tirage-ligne-suspense {
+  border-color: #d4a23c;
+  animation: tirage-pulse 0.5s ease-in-out infinite;
+}
+.tirage-ligne-revelee {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  animation: tirage-pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.tirage-ligne-premier {
+  background: linear-gradient(135deg, #8f6410, #d4a23c);
+  border-color: #f3d27a;
+  color: #1b1304;
+  font-weight: 600;
+  box-shadow: 0 0 24px rgba(212, 162, 60, 0.55);
+}
+.tirage-ligne-premier .tirage-rang {
+  background: rgba(27, 19, 4, 0.25);
+}
+@keyframes tirage-apparition {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes tirage-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.025); }
+}
+@keyframes tirage-pop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tirage-voile,
+  .tirage-machine,
+  .tirage-ligne-suspense,
+  .tirage-ligne-revelee {
+    animation: none;
+  }
+}
+ 
