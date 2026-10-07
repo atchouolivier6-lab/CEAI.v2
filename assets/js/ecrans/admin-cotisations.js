@@ -22,6 +22,8 @@ import {
 
 // Sessions dont le corps est déplié (mémorisé pendant les rafraîchissements)
 const sessionsDepliees = new Set();
+// Sessions dont le panneau "Ajouter un membre" est ouvert
+const ajoutsOuverts = new Set();
 
 function formaterDate(dateIso) {
   return dateIso ? new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "—";
@@ -150,6 +152,11 @@ async function rafraichir(conteneur) {
             <button data-basculer-adherents="${s.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:6px 12px; font-size:13px">
               Adhérents (${adherentsSession.length})
             </button>
+            ${
+              estAdmin
+                ? `<button data-basculer-ajout="${s.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--or-texte); padding:6px 12px; font-size:13px">Ajouter un membre</button>`
+                : ""
+            }
             <button data-basculer-liste="${s.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:6px 12px; font-size:13px">
               Versements en attente (${enAttente.length})
             </button>
@@ -186,6 +193,14 @@ async function rafraichir(conteneur) {
                 : `<p style="color:var(--texte-secondaire); font-size:13px">Aucun adhérent pour le moment.</p>`
             }
           </div>
+
+          ${
+            estAdmin
+              ? `<div data-panneau-ajout="${s.id}" ${ajoutsOuverts.has(s.id) ? "" : "hidden"} style="margin-top:12px">
+                   ${gabaritAjoutAdherent(s.id, adherentsSession, membres || [])}
+                 </div>`
+              : ""
+          }
 
           <div data-liste-versements="${s.id}" hidden style="margin-top:12px; display:flex; flex-direction:column; gap:8px">
             ${
@@ -242,6 +257,41 @@ async function rafraichir(conteneur) {
     bouton.addEventListener("click", () => {
       const zone = listeSessions.querySelector(`[data-liste-adherents="${bouton.dataset.basculerAdherents}"]`);
       zone.hidden = !zone.hidden;
+    });
+  });
+
+  // --- Ajouter un membre du site à une session (admin uniquement)
+  listeSessions.querySelectorAll("[data-basculer-ajout]").forEach((bouton) => {
+    bouton.addEventListener("click", () => {
+      const id = bouton.dataset.basculerAjout;
+      const zone = listeSessions.querySelector(`[data-panneau-ajout="${id}"]`);
+      zone.hidden = !zone.hidden;
+      if (zone.hidden) ajoutsOuverts.delete(id);
+      else ajoutsOuverts.add(id);
+    });
+  });
+
+  listeSessions.querySelectorAll("[data-ajouter-adherent]").forEach((bouton) => {
+    bouton.addEventListener("click", async () => {
+      const sessionId = bouton.dataset.ajouterAdherent;
+      if (!window.confirm(`Ajouter ${bouton.dataset.nom} à cette session ?`)) return;
+
+      bouton.disabled = true;
+      const { error } = await supabase.from("cotisation_adhesions").insert({
+        membre_id: bouton.dataset.membre,
+        session_id: sessionId,
+      });
+
+      if (error) {
+        bouton.disabled = false;
+        alert("L'ajout a échoué : " + error.message);
+        return;
+      }
+
+      sessionsDepliees.add(sessionId);
+      ajoutsOuverts.add(sessionId);
+      notifier("Un membre a été ajouté à une session de cotisation par l'administration.");
+      rafraichir(conteneur);
     });
   });
 
@@ -398,21 +448,21 @@ function gabaritFormulaireBilan(sessionId, nomSession, bilan) {
         <textarea name="depenses_description" rows="2" placeholder="Détail des dépenses (facultatif)"
                   style="width:100%; margin-top:6px; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical">${echapper(bilan?.depenses_description || "")}</textarea>
       </div>
-
+ 
       <div>
         <p style="margin:0 0 6px; font-size:13px; font-weight:500">Remboursements de prêts effectués avec cette cotisation</p>
         <input type="number" name="remboursements_montant" min="0" step="1" placeholder="Montant (FCFA)" value="${bilan?.remboursements_montant || 0}"
                style="width:100%; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
-        <textarea name="remboursements_description" rows="2" placeholder="Détail (facultatif)"
+                       <textarea name="remboursements_description" rows="2" placeholder="Détail (facultatif)"
                   style="width:100%; margin-top:6px; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical">${echapper(bilan?.remboursements_description || "")}</textarea>
       </div>
-
+ 
       <div>
         <p style="margin:0 0 6px; font-size:13px; font-weight:500">Réalisations faites avec cette cotisation</p>
         <input type="number" name="realisations_montant" min="0" step="1" placeholder="Montant (FCFA)" value="${bilan?.realisations_montant || 0}"
                style="width:100%; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
-        <textarea name="realisations_description" rows="2" placeholder="Détail (facultatif)"
-                                  style="width:100%; margin-top:6px; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical">${echapper(bilan?.realisations_description || "")}</textarea>
+               <textarea name="realisations_description" rows="2" placeholder="Détail (facultatif)"
+                  style="width:100%; margin-top:6px; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical">${echapper(bilan?.realisations_description || "")}</textarea>
       </div>
  
       <p class="erreur-bilan" style="color:var(--danger); font-size:13px; margin:0" hidden></p>
@@ -420,7 +470,7 @@ function gabaritFormulaireBilan(sessionId, nomSession, bilan) {
       <div style="display:flex; gap:8px">
         <button type="submit" class="bouton bouton-or" style="flex:1">Enregistrer le bilan</button>
         <button type="button" data-annuler-bilan="${sessionId}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte)">Fermer</button>
-        </div>
+      </div>
     </form>
   `;
 }
@@ -432,12 +482,36 @@ function gabaritVersementEnAttente(v, nomParId) {
         <p style="margin:0; font-weight:500; font-size:14px">${echapper(nomParId[v.membre_id] || "—")}</p>
         <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">
           ${Number(v.montant).toLocaleString("fr-FR")} FCFA · ${new Date(v.date_versement).toLocaleDateString("fr-FR")}
-        </p>
-        </div>
+                  </p>
+      </div>
       <div style="display:flex; gap:6px">
         <button data-valider="${v.id}" class="bouton" style="background:#4C9A6A; color:#fff; padding:6px 10px; font-size:12px">Valider</button>
         <button data-rejeter="${v.id}" class="bouton" style="background:var(--danger); color:#fff; padding:6px 10px; font-size:12px">Rejeter</button>
       </div>
     </div>
+  `;
+}
+ 
+// Liste des membres du site qui ne sont pas encore dans la session
+function gabaritAjoutAdherent(sessionId, adherentsSession, membres) {
+  const dejaAdherents = new Set(adherentsSession.map((a) => a.membre_id));
+  const disponibles = membres.filter((m) => !dejaAdherents.has(m.id));
+   
+  if (!disponibles.length) {
+    return `<p style="color:var(--texte-secondaire); font-size:13px; margin:0">Tous les membres du site ont déjà adhéré à cette session.</p>`;
+  }
+ 
+  return `
+    <p style="margin:0 0 6px; font-size:13px; color:var(--texte-secondaire)">Membres du site pas encore dans cette session :</p>
+    ${disponibles
+      .map(
+        (m) => `
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:6px 0; border-top:1px solid var(--bordure)">
+        <span style="font-size:13px">${echapper(m.nom)}</span>
+        <button data-ajouter-adherent="${sessionId}" data-membre="${m.id}" data-nom="${echapper(m.nom)}" class="bouton"
+                        style="background:var(--fond-carte-claire); color:var(--texte); padding:5px 10px; font-size:12px">Ajouter</button>
+      </div>`
+      )
+      .join("")}
   `;
 }
