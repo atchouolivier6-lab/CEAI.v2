@@ -15,6 +15,7 @@ import { ecranTontineArchives } from "./ecrans/tontine-archives.js";
 import { ecranEpargneComptes, ecranEpargneOuvrir, ecranEpargneVerser } from "./ecrans/epargne-membre.js";
 import { ecranAccueil } from "./ecrans/accueil.js";
 import { ecranAPropos } from "./ecrans/a-propos.js";
+import { ecranInvitation } from "./ecrans/invitation-rejoindre.js";
 import { ecranPublications } from "./ecrans/publications.js";
 import { ecranAdminCotisations } from "./ecrans/admin-cotisations.js";
 import { ecranAdminTontine } from "./ecrans/admin-tontine.js";
@@ -70,9 +71,15 @@ const routes = {
 };
 
 export async function naviguerVers(route) {
-  const rendu = routes[route] || routes["accueil"];
   zoneContenu.innerHTML = '<p class="chargement">Chargement…</p>';
-  await rendu(zoneContenu);
+
+  // Liens d'invitation : invitation/cotisation/<id> ou invitation/tontine/<id>
+  if (route.startsWith("invitation/")) {
+    await ecranInvitation(zoneContenu, route.split("/").slice(1));
+  } else {
+    const rendu = routes[route] || routes["accueil"];
+    await rendu(zoneContenu);
+  }
 
   document.querySelectorAll(".menu-item[data-route]").forEach((bouton) => {
     bouton.classList.toggle("actif", bouton.dataset.route === route);
@@ -93,4 +100,4 @@ export function initialiserRouteur() {
 
   const routeInitiale = window.location.hash.replace("#", "") || "accueil";
   naviguerVers(routeInitiale);
-        }
+}
