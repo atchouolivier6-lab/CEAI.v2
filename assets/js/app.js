@@ -5,6 +5,8 @@ import { supabase } from "./supabase-client.js";
 import { initialiserAuthentification } from "./auth.js";
 import { initialiserRouteur, naviguerVers } from "./router.js";
 import { idProfilCourant } from "./mon-profil.js";
+import { memoriserInvitationDepuisUrl, afficherBanniereInvitation, consommerInvitation } from "./invitation.js";
+import { initialiserPartage } from "./partage.js";
 
 const boutonMenu = document.getElementById("bouton-menu");
 const menuAccordeon = document.getElementById("menu-accordeon");
@@ -148,7 +150,17 @@ document.addEventListener("ceai:connecte", () => {
   afficherMenuSelonRole();
   chargerNotifications();
   ecouterNotificationsEnDirect();
+
+  // Lien d'invitation reçu avant la connexion : on va directement à la session ou au cycle
+  const invitation = consommerInvitation();
+  if (invitation) window.location.hash = invitation;
+
+  initialiserPartage();
   initialiserRouteur();
 });
+
+// Un lien d'invitation est mémorisé dès l'arrivée, et annoncé sur l'écran de connexion
+memoriserInvitationDepuisUrl();
+afficherBanniereInvitation();
 
 initialiserAuthentification();
