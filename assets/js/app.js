@@ -7,6 +7,7 @@ import { initialiserRouteur, naviguerVers } from "./router.js";
 import { idProfilCourant } from "./mon-profil.js";
 import { memoriserInvitationDepuisUrl, afficherBanniereInvitation, consommerInvitation } from "./invitation.js";
 import { initialiserPartage } from "./partage.js";
+import { initialiserAgents } from "./agents-bouton.js";
 
 const boutonMenu = document.getElementById("bouton-menu");
 const menuAccordeon = document.getElementById("menu-accordeon");
@@ -83,7 +84,7 @@ async function chargerNotifications() {
     messagesNonLus > 0
       ? `<li>
           <button id="ligne-messages-non-lus" style="all:unset; cursor:pointer; color:var(--or-texte); font-weight:500">
-            💬 ${messagesNonLus} nouveau${messagesNonLus > 1 ? "x" : ""} message${messagesNonLus > 1 ? "s" : ""}
+            ${messagesNonLus} nouveau${messagesNonLus > 1 ? "x" : ""} message${messagesNonLus > 1 ? "s" : ""}
           </button>
         </li>`
       : "";
@@ -157,6 +158,7 @@ document.addEventListener("ceai:connecte", () => {
 
   initialiserPartage();
   initialiserRouteur();
+  initialiserAgents(); // bouton flottant "Discuter avec un agent" (accueil uniquement)
 });
 
 // Un lien d'invitation est mémorisé dès l'arrivée, et annoncé sur l'écran de connexion
