@@ -13,7 +13,7 @@ import { carteOuverture } from "./ecrans/composants-tableau.js";
 
 const CLE = "ceai-invitation";
 const DUREE_MAX = 7 * 24 * 3600 * 1000; // une invitation mémorisée reste valable 7 jours
-const MOTIF = /^#?invitation\/(cotisation|tontine)\/([0-9a-fA-F-]{36})$/;
+const MOTIF = /^#?invitation\/(cotisation|tontine)\/([A-Za-z0-9-]{8,80})$/;
 
 const LIBELLES = {
   cotisation: "Session de cotisation",
@@ -65,12 +65,12 @@ export async function afficherBanniereInvitation() {
   const logo = document.querySelector("#ecran-auth .logo-auth");
   if (!logo || document.getElementById("banniere-invitation")) return;
 
-  const [, type, id] = route.split("/");
+  const [, type, ref] = route.split("/");
 
   // Aperçu public (nom + thème seulement) ; si le script SQL n'est pas installé, on affiche un message général
   let apercu = null;
   try {
-    const { data } = await supabase.rpc("invitation_apercu", { p_type: type, p_id: id });
+    const { data } = await supabase.rpc("invitation_apercu", { p_type: type, p_ref: ref });
     apercu = data?.[0] || null;
   } catch {
     apercu = null;
@@ -105,4 +105,4 @@ export async function afficherBanniereInvitation() {
   }
 
   logo.insertAdjacentElement("afterend", banniere);
-}
+  }
