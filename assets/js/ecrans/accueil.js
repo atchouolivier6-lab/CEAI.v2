@@ -158,4 +158,4 @@ export async function ecranAccueil(conteneur) {
   });
 
   activerCartesCliquables(conteneur);
-  }
+    }
