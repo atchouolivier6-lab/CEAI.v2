@@ -1,6 +1,8 @@
 // =========================================================
 // CEAI — Écran d'arrivée d'une invitation
-// Route : invitation/cotisation/<id> ou invitation/tontine/<id>
+// Route : invitation/cotisation/<référence> ou invitation/tontine/<référence>
+// La référence est le code court de la session ou du cycle
+// (ex. janvier-2026-k7m2qx9p) ; l'ancien identifiant long marche aussi.
 // Le membre (connecté) voit directement la session ou le cycle
 // et peut y adhérer en un geste.
 // =========================================================
@@ -14,6 +16,12 @@ function naviguer(route) {
 }
 
 const ENTETE = `<h2 class="titre-section">Invitation</h2><hr class="trait-or" />`;
+const EST_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Le code est toujours les 8 derniers caractères ; le début du lien n'est que le nom, pour la lisibilité
+function critere(reference) {
+  return EST_UUID.test(reference) ? ["id", reference] : ["code_invitation", reference.slice(-8).toLowerCase()];
+}
 
 function rendreMessage(conteneur, texte) {
   conteneur.innerHTML = `
@@ -29,11 +37,12 @@ function rendreMessage(conteneur, texte) {
 // ---------------------------------------------------------
 // Chargement : une "invitation" décrit tout ce qu'il faut afficher
 // ---------------------------------------------------------
-async function chargerCotisation(id, moiId) {
+async function chargerCotisation(reference, moiId) {
+  const [champ, valeur] = critere(reference);
   const { data: session } = await supabase
     .from("cotisation_sessions")
     .select("id, nom, montant_indicatif, theme, statut")
-    .eq("id", id)
+    .eq(champ, valeur)
     .maybeSingle();
   if (!session || session.statut !== "ouverte") return null;
 
@@ -41,7 +50,7 @@ async function chargerCotisation(id, moiId) {
     .from("cotisation_adhesions")
     .select("session_id")
     .eq("membre_id", moiId)
-    .eq("session_id", id)
+    .eq("session_id", session.id)
     .maybeSingle();
 
   return {
@@ -60,18 +69,19 @@ async function chargerCotisation(id, moiId) {
     libelleSuite: "Faire mon versement",
     routeSuite: "cotisation/verser",
     async rejoindre() {
-      const { error } = await supabase.from("cotisation_adhesions").insert({ membre_id: moiId, session_id: id });
+      const { error } = await supabase.from("cotisation_adhesions").insert({ membre_id: moiId, session_id: session.id });
       if (!error) notifier(`Un nouveau membre a adhéré à la session "${session.nom}".`);
       return error;
     },
   };
 }
 
-async function chargerTontine(id, moiId) {
+async function chargerTontine(reference, moiId) {
+  const [champ, valeur] = critere(reference);
   const { data: cycle } = await supabase
     .from("tontine_cycles")
     .select("id, nom, montant_mensuel, theme, statut, tirage_effectue_le")
-    .eq("id", id)
+    .eq(champ, valeur)
     .maybeSingle();
   if (!cycle || cycle.statut !== "ouvert") return null;
 
@@ -79,7 +89,7 @@ async function chargerTontine(id, moiId) {
     .from("tontine_participants")
     .select("id")
     .eq("membre_id", moiId)
-    .eq("cycle_id", id)
+    .eq("cycle_id", cycle.id)
     .maybeSingle();
 
   const tirageFait = Boolean(cycle.tirage_effectue_le);
@@ -106,10 +116,10 @@ async function chargerTontine(id, moiId) {
       const { count } = await supabase
         .from("tontine_participants")
         .select("id", { count: "exact", head: true })
-        .eq("cycle_id", id);
+        .eq("cycle_id", cycle.id);
 
       const { error } = await supabase.from("tontine_participants").insert({
-        cycle_id: id,
+        cycle_id: cycle.id,
         membre_id: moiId,
         ordre_tour: (count || 0) + 1,
       });
@@ -165,18 +175,18 @@ function afficher(conteneur, invitation) {
   });
 }
 
-// parametres = [type, id] extraits de l'adresse
+// parametres = [type, référence] extraits de l'adresse
 export async function ecranInvitation(conteneur, parametres) {
-  const [type, id] = parametres;
+  const [type, reference] = parametres;
   conteneur.innerHTML = `${ENTETE}<p class="chargement">Chargement…</p>`;
 
-  if (!["cotisation", "tontine"].includes(type) || !id) {
+  if (!["cotisation", "tontine"].includes(type) || !reference) {
     rendreMessage(conteneur, "Ce lien d'invitation n'est pas valide.");
     return;
   }
 
   const moiId = await idProfilCourant();
-  const invitation = type === "cotisation" ? await chargerCotisation(id, moiId) : await chargerTontine(id, moiId);
+  const invitation = type === "cotisation" ? await chargerCotisation(reference, moiId) : await chargerTontine(reference, moiId);
 
   if (!invitation) {
     rendreMessage(
