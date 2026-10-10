@@ -1,0 +1,299 @@
+/* =========================================================
+   CEAI — Agents d'assistance : bouton flottant, liste, discussion
+   ========================================================= */
+
+/* ---------- Bouton flottant ---------- */
+.agents-fab {
+  position: fixed;
+  z-index: 900;
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #1b1304;
+  background: linear-gradient(135deg, #8f6410, #d4a23c);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+  cursor: grab;
+  touch-action: none; /* le doigt déplace le bouton au lieu de faire défiler la page */
+  user-select: none;
+  animation: agents-pulse 3.6s ease-in-out infinite;
+}
+.agents-fab[hidden] {
+  display: none;
+}
+.agents-fab-glisse {
+  cursor: grabbing;
+  transform: scale(1.1);
+  animation: none;
+}
+.agents-fab-aimante {
+  transition: left 0.25s ease, top 0.25s ease;
+}
+.agents-fab-pastille {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #d65353;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.agents-fab-pastille[hidden] {
+  display: none;
+}
+@keyframes agents-pulse {
+  0%, 100% { box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35), 0 0 0 0 rgba(212, 162, 60, 0.45); }
+  50% { box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35), 0 0 0 11px rgba(212, 162, 60, 0); }
+}
+
+/* ---------- Feuille ---------- */
+body.agents-ouvert {
+  overflow: hidden;
+}
+.agents-voile {
+  position: fixed;
+  inset: 0;
+  z-index: 1150;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(5, 12, 9, 0.7);
+  animation: partage-fondu 0.2s ease;
+}
+.agents-feuille {
+  display: flex;
+  flex-direction: column;
+  width: min(480px, 100%);
+  height: min(86vh, 640px);
+  border: 1px solid var(--bordure);
+  border-bottom: 0;
+  border-radius: 22px 22px 0 0;
+  background: var(--fond);
+  color: var(--texte);
+  animation: partage-monte 0.28s ease;
+}
+.agents-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 10px;
+}
+.agents-titre {
+  margin: 0;
+  font-family: var(--police-titre, inherit);
+  font-size: 20px;
+}
+.agents-fermer {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fond-carte-claire, rgba(255, 255, 255, 0.08));
+  color: var(--texte);
+  font-size: 14px;
+  cursor: pointer;
+}
+.agents-corps {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 20px 24px;
+}
+.agents-section {
+  margin: 14px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--or-texte);
+}
+.agents-aide {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--texte-secondaire);
+}
+
+/* ---------- Lignes d'agents ---------- */
+.agent-ligne {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--bordure);
+}
+.agent-ligne-cliquable {
+  cursor: pointer;
+}
+.agent-avatar {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1d4f91, #2f7bd0);
+  color: #fff;
+  font-family: var(--police-titre, inherit);
+  font-size: 18px;
+}
+.agent-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.agent-infos {
+  flex: 1;
+  min-width: 0;
+}
+.agent-nom {
+  margin: 0;
+  font-weight: 500;
+  font-size: 15px;
+}
+.agent-role {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--texte-secondaire);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agent-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.agent-bouton {
+  position: relative;
+  padding: 6px 12px;
+  font-size: 12px;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.agent-wa {
+  background: #25d366;
+  color: #08331a;
+  font-weight: 600;
+}
+.agent-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #d65353;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.agent-badge-seul {
+  margin: 0;
+}
+
+/* ---------- Discussion ---------- */
+.discussion {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.discussion-entete {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--bordure);
+}
+.discussion-retour {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fond-carte-claire, rgba(255, 255, 255, 0.08));
+  color: var(--texte);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.discussion-fil {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+.bulle {
+  max-width: 82%;
+  padding: 9px 12px;
+  border-radius: 16px;
+}
+.bulle-moi {
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+  background: linear-gradient(135deg, #8f6410, #d4a23c);
+  color: #1b1304;
+}
+.bulle-autre {
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+  background: var(--fond-carte-claire, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--bordure);
+}
+.bulle-texte {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.bulle-heure {
+  margin: 3px 0 0;
+  font-size: 10px;
+  opacity: 0.65;
+  text-align: right;
+}
+.discussion-saisie {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--bordure);
+}
+.discussion-saisie textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: 110px;
+  padding: 10px 12px;
+  border: 1px solid var(--bordure);
+  border-radius: 14px;
+  background: var(--fond);
+  color: var(--texte);
+  font-family: inherit;
+  font-size: 14px;
+  resize: none;
+}
+.discussion-erreur {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agents-fab,
+  .agents-voile,
+  .agents-feuille {
+    animation: none;
+  }
+  }
