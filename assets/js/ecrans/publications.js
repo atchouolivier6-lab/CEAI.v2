@@ -1,9 +1,23 @@
 // =========================================================
 // CEAI — Écran "Publications"
+// Quand on arrive depuis une publication de l'Accueil, l'écran
+// défile jusqu'à cette publication et la met brièvement en valeur.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
+import { echapper } from "./composants-tableau.js";
+
+const CLE_CIBLE = "ceai-publication-cible";
+
+const ICONE_COMMENTAIRE =
+  '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+
+// Étoile dessinée (pleine quand on a réagi), à la place d'un caractère texte
+function iconeEtoile(pleine) {
+  return `<svg viewBox="0 0 24 24" width="17" height="17" fill="${pleine ? "currentColor" : "none"}" stroke="currentColor"
+    stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2.5 15 9 22 9.6 16.7 14.3 18.3 21.3 12 17.6 5.7 21.3 7.3 14.3 2 9.6 9 9"/></svg>`;
+}
 
 function formaterDate(dateIso) {
   return new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -11,6 +25,28 @@ function formaterDate(dateIso) {
 
 function initiale(nom) {
   return (nom || "?").trim().charAt(0).toUpperCase();
+}
+
+// Défile jusqu'à la publication choisie sur l'Accueil et la met en valeur quelques secondes
+function allerALaPublicationCible() {
+  let cible = null;
+  try {
+    cible = sessionStorage.getItem(CLE_CIBLE);
+    sessionStorage.removeItem(CLE_CIBLE);
+  } catch {
+    return;
+  }
+  if (!cible) return;
+
+  const carte = document.querySelector(`[data-publication-id="${CSS.escape(cible)}"]`);
+  if (!carte) return;
+
+  carte.scrollIntoView({ behavior: "smooth", block: "center" });
+  carte.style.transition = "box-shadow 0.6s ease";
+  carte.style.boxShadow = "0 0 0 3px var(--or-texte)";
+  setTimeout(() => {
+    carte.style.boxShadow = "";
+  }, 2600);
 }
 
 export async function ecranPublications(conteneur) {
@@ -22,6 +58,7 @@ export async function ecranPublications(conteneur) {
   const jeSuisAdmin = monProfil?.role === "admin";
 
   await rafraichirFil(conteneur, moiId, jeSuisAdmin);
+  allerALaPublicationCible();
 }
 
 async function rafraichirFil(conteneur, moiId, jeSuisAdmin) {
@@ -119,30 +156,32 @@ function gabaritPublication(pub, medias, reactions, commentaires, moiId) {
       <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px">
         <div style="width:36px; height:36px; border-radius:50%; background:var(--fond-carte-claire);
              display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--or-texte)">
-          ${initiale(pub.profils?.nom)}
+          ${echapper(initiale(pub.profils?.nom))}
         </div>
         <div>
-          <p style="margin:0; font-size:14px; font-weight:500">${pub.profils?.nom || "—"}</p>
+          <p style="margin:0; font-size:14px; font-weight:500">${echapper(pub.profils?.nom || "—")}</p>
           <p style="margin:0; font-size:11px; color:var(--texte-secondaire)">${formaterDate(pub.cree_le)}</p>
         </div>
       </div>
 
-      ${pub.texte ? `<p style="margin:0 0 10px; white-space:pre-line">${pub.texte}</p>` : ""}
+      ${pub.texte ? `<p style="margin:0 0 10px; white-space:pre-line">${echapper(pub.texte)}</p>` : ""}
 
       ${mediasDePub
         .map((m) =>
           m.type === "video"
-            ? `<video src="${m.url}" controls style="width:100%; border-radius:var(--rayon-petit); margin-bottom:10px"></video>`
-            : `<img src="${m.url}" alt="" style="width:100%; border-radius:var(--rayon-petit); margin-bottom:10px" />`
+            ? `<video src="${echapper(m.url)}" controls style="width:100%; border-radius:var(--rayon-petit); margin-bottom:10px"></video>`
+            : `<img src="${echapper(m.url)}" alt="" style="width:100%; border-radius:var(--rayon-petit); margin-bottom:10px" />`
         )
         .join("")}
 
       <div style="display:flex; align-items:center; gap:16px; padding-top:8px; border-top:1px solid var(--bordure)">
         <button class="bouton-reaction" data-id="${pub.id}" style="all:unset; cursor:pointer; display:flex; align-items:center; gap:6px;
                 color:${jaiReagi ? "var(--or)" : "var(--texte-secondaire)"}; font-size:13px">
-          ${jaiReagi ? "★" : "☆"} <span>${reactionsDePub.length}</span>
+          ${iconeEtoile(jaiReagi)} <span>${reactionsDePub.length}</span>
         </button>
-        <span style="font-size:13px; color:var(--texte-secondaire)">💬 ${commentairesDePub.length}</span>
+        <span style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--texte-secondaire)">
+          ${ICONE_COMMENTAIRE} ${commentairesDePub.length}
+        </span>
       </div>
 
       <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px">
@@ -150,9 +189,9 @@ function gabaritPublication(pub, medias, reactions, commentaires, moiId) {
           .map(
             (c) => `
           <div style="font-size:13px">
-            <strong>${c.profils?.nom || "—"}</strong>
+            <strong>${echapper(c.profils?.nom || "—")}</strong>
             <span style="color:var(--texte-secondaire)"> · ${formaterDate(c.cree_le)}</span>
-            <p style="margin:2px 0 0">${c.texte}</p>
+            <p style="margin:2px 0 0">${echapper(c.texte)}</p>
           </div>
         `
           )
@@ -202,4 +241,4 @@ function brancherInteractions(conteneur, moiId, jeSuisAdmin) {
       rafraichirFil(conteneur, moiId, jeSuisAdmin);
     });
   });
-      }
+}
