@@ -10,6 +10,7 @@
 //  - ouvre une feuille de partage : WhatsApp, Facebook, Telegram, SMS,
 //    e-mail, copie du lien, et le partage natif du téléphone
 // =========================================================
+import { supabase } from "./supabase-client.js";
 import { echapper } from "./ecrans/composants-tableau.js";
 
 const LIBELLES = {
@@ -17,10 +18,35 @@ const LIBELLES = {
   tontine: "le cycle de tontine",
 };
 
-// Lien direct vers une session ou un cycle (reste valable tant qu'elle est ouverte)
-export function lienInvitation(type, id) {
+const TABLES = { cotisation: "cotisation_sessions", tontine: "tontine_cycles" };
+
+// "Janvier 2026 (Aide)" -> "janvier-2026-aide"
+function slugifier(nom) {
+  return String(nom || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 28)
+    .replace(/-+$/g, "");
+}
+
+// Lien propre à CHAQUE session / cycle : nom lisible + code unique créé à l'ouverture.
+// Si le code n'est pas disponible (script SQL pas encore lancé), on utilise l'identifiant complet.
+export async function lienInvitation(type, id, nom) {
   const base = window.location.href.split("#")[0];
-  return `${base}#invitation/${type}/${id}`;
+  let reference = id;
+  try {
+    const { data } = await supabase.from(TABLES[type]).select("code_invitation").eq("id", id).maybeSingle();
+    if (data?.code_invitation) {
+      const slug = slugifier(nom);
+      reference = slug ? `${slug}-${data.code_invitation}` : data.code_invitation;
+    }
+  } catch {
+    // on garde l'identifiant complet
+  }
+  return `${base}#invitation/${type}/${reference}`;
 }
 
 const ICONES = {
@@ -41,8 +67,8 @@ function pastille({ couleur, lettre, icone }) {
 // ---------------------------------------------------------
 // Feuille de partage
 // ---------------------------------------------------------
-function ouvrirFeuille({ type, id, nom }) {
-  const lien = lienInvitation(type, id);
+async function ouvrirFeuille({ type, id, nom }) {
+  const lien = await lienInvitation(type, id, nom);
   const intro = `Je vous invite à rejoindre ${LIBELLES[type]} « ${nom} » sur CEAI (Connaissance Entre Amis Intimes).`;
   const message = `${intro} Touchez ce lien pour y accéder : ${lien}`;
   const enc = encodeURIComponent;
@@ -243,4 +269,4 @@ export function initialiserPartage() {
   );
 
   injecter(zone);
-                                                                             }
+    }
