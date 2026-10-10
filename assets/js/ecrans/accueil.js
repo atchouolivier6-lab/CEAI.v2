@@ -1,7 +1,7 @@
 // =========================================================
 // CEAI — Écran "Accueil" (version moderne)
 // Cartes de statistiques colorées, prochain bénéficiaire de la
-// tontine, activités récentes et dernières publications.
+// tontine, activités récentes animées et dernières publications.
 // Chaque carte renvoie vers l'écran correspondant.
 // =========================================================
 import { supabase } from "../supabase-client.js";
@@ -10,13 +10,12 @@ import {
   carteStat,
   grilleStats,
   activerCartesCliquables,
-  panneauActivites,
   panneauBeneficiaire,
   chargerProchainsBeneficiaires,
   echapper,
   formaterMontant,
-  tempsRelatif,
 } from "./composants-tableau.js";
+import { panneauNotifications, panneauPublications } from "./notifications-accueil.js";
 
 // Total de mon épargne (versements validés de mes comptes non retirés)
 async function chargerMonEpargne(moiId) {
@@ -37,6 +36,20 @@ async function chargerMonEpargne(moiId) {
 
   const total = (versements || []).reduce((somme, v) => somme + Number(v.montant), 0);
   return { total, nombre: ids.length };
+}
+
+// Rappel pour les admins et comptables qui n'ont pas encore renseigné leur numéro WhatsApp
+async function rappelWhatsapp(moiId) {
+  const { data } = await supabase.from("profils").select("role, whatsapp").eq("id", moiId).maybeSingle();
+  if (!data || !["admin", "comptable"].includes(data.role) || data.whatsapp) return "";
+  return `
+    <div class="alerte-agent" data-aller="membres/profil" role="link" tabindex="0">
+      <p class="alerte-agent-titre">Numéro WhatsApp à renseigner</p>
+      <p class="alerte-agent-texte">
+        En tant que ${data.role === "admin" ? "administrateur" : "comptable"}, vous êtes un agent d'assistance :
+        les membres doivent pouvoir vous joindre sur WhatsApp. Touchez ici pour compléter votre profil.
+      </p>
+    </div>`;
 }
 
 export async function ecranAccueil(conteneur) {
@@ -61,13 +74,15 @@ export async function ecranAccueil(conteneur) {
     { data: dernieresPublications },
     { data: notifications },
     epargne,
+    rappel,
   ] = await Promise.all([
     supabase.from("capital_cotisation").select("total").maybeSingle(),
     chargerProchainsBeneficiaires(),
     supabase.from("profils").select("id", { count: "exact", head: true }).eq("actif", true),
     supabase.from("publications").select("id, texte, cree_le").order("cree_le", { ascending: false }).limit(3),
-    supabase.from("notifications").select("texte, cree_le").order("cree_le", { ascending: false }).limit(5),
+    supabase.from("notifications").select("texte, cree_le").order("cree_le", { ascending: false }).limit(6),
     chargerMonEpargne(moiId),
+    rappelWhatsapp(moiId),
   ]);
 
   const cycles = tontine.cycles;
@@ -116,35 +131,31 @@ export async function ecranAccueil(conteneur) {
     }),
   ]);
 
-  const publications =
-    dernieresPublications && dernieresPublications.length
-      ? dernieresPublications
-          .map((p) => {
-            const texte = p.texte ? p.texte.slice(0, 120) + (p.texte.length > 120 ? "…" : "") : "(média)";
-            return `
-        <div class="activite">
-          <span class="activite-point"></span>
-          <div>
-            <p class="activite-texte">${echapper(texte)}</p>
-            <p class="activite-date">${tempsRelatif(p.cree_le)}</p>
-          </div>
-        </div>`;
-          })
-          .join("")
-      : `<p class="panneau-vide">Aucune publication pour le moment</p>`;
-
   conteneur.innerHTML = `
     ${enTete}
+    ${rappel}
     ${cartes}
     <div class="grille-panneaux">
       ${panneauBeneficiaire(tontine)}
-      ${panneauActivites("Activités récentes", notifications || [])}
-      <div class="panneau-tableau panneau-large">
-        <p class="panneau-tableau-titre">Dernières publications</p>
-        ${publications}
-      </div>
+      ${panneauNotifications(notifications || [])}
+      ${panneauPublications(dernieresPublications || [])}
     </div>
   `;
 
+  // Le toucher d'une publication mène à l'espace Publications, directement sur celle-ci
+  conteneur.querySelectorAll("[data-publication]").forEach((carte) => {
+    const memoriser = () => {
+      try {
+        sessionStorage.setItem("ceai-publication-cible", carte.dataset.publication);
+      } catch {
+        // l'écran s'ouvrira simplement en haut de la liste
+      }
+    };
+    carte.addEventListener("click", memoriser);
+    carte.addEventListener("keydown", (evenement) => {
+      if (evenement.key === "Enter") memoriser();
+    });
+  });
+
   activerCartesCliquables(conteneur);
-}
+  }
