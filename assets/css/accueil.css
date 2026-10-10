@@ -1,0 +1,193 @@
+/* =========================================================
+   CEAI — Accueil : activités récentes, publications, rappel agent
+   ========================================================= */
+
+/* ---------- Activités récentes ---------- */
+.panneau-notifs {
+  overflow: hidden;
+}
+.notifs-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.notifs-entete .panneau-tableau-titre {
+  margin: 0;
+}
+.notifs-compteur {
+  min-width: 26px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--or-texte);
+  color: #1b1304;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.notif {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--bordure);
+  border-left: 4px solid var(--c1);
+  border-radius: 14px;
+  background: var(--fond-carte-claire, rgba(255, 255, 255, 0.05));
+  opacity: 0;
+  animation: notif-entree 0.45s ease forwards;
+  animation-delay: calc(var(--i) * 80ms);
+}
+.notif-premiere {
+  border-color: var(--or-texte);
+  border-left-color: var(--c1);
+  background:
+    linear-gradient(100deg, rgba(212, 162, 60, 0.18), transparent 70%),
+    var(--fond-carte-claire, rgba(255, 255, 255, 0.05));
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.notif-badge {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(135deg, var(--c1), var(--c2));
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  animation: notif-flotte 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.5s);
+}
+.notif-corps {
+  flex: 1;
+  min-width: 0;
+}
+.notif-texte {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.notif-date {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--texte-secondaire);
+}
+.notif-nouveau {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--or-texte);
+  color: #1b1304;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@keyframes notif-entree {
+  from { opacity: 0; transform: translateX(-14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes notif-flotte {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* ---------- Publications : cartes sombres, extrait seulement ---------- */
+.panneau-publications {
+  background: linear-gradient(135deg, #0f241b, #1b4636);
+  border-color: rgba(212, 162, 60, 0.35);
+  color: #f4f1e8;
+}
+.panneau-publications .panneau-tableau-titre {
+  color: #f4f1e8;
+}
+.publications-liste {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+@media (min-width: 760px) {
+  .publications-liste {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.publication-carte {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.publication-carte:hover,
+.publication-carte:focus-visible {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.13);
+  outline: none;
+}
+.publication-icone {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(212, 162, 60, 0.2);
+  color: #d4a23c;
+}
+.publication-texte {
+  flex: 1;
+  margin: 10px 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #f4f1e8;
+}
+.publication-pied {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  color: rgba(244, 241, 232, 0.65);
+}
+.publication-lire {
+  color: #d4a23c;
+  font-weight: 600;
+}
+
+/* ---------- Rappel pour les agents sans numéro WhatsApp ---------- */
+.alerte-agent {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--or-texte);
+  border-radius: 14px;
+  background: linear-gradient(100deg, rgba(212, 162, 60, 0.18), transparent 80%);
+  cursor: pointer;
+}
+.alerte-agent-titre {
+  margin: 0;
+  font-weight: 600;
+  color: var(--or-texte);
+}
+.alerte-agent-texte {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--texte-secondaire);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notif {
+    opacity: 1;
+    animation: none;
+  }
+  .notif-badge {
+    animation: none;
+  }
+    }
