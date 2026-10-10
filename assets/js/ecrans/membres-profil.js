@@ -1,8 +1,12 @@
 // =========================================================
 // CEAI — Écran "Mon profil"
+// Les administrateurs et comptables sont les "agents" d'assistance :
+// leur numéro WhatsApp est OBLIGATOIRE, pour que les membres
+// puissent les joindre depuis le bouton "Discuter avec un agent".
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
+import { echapper } from "./composants-tableau.js";
 
 const MOIS = [
   "janvier", "février", "mars", "avril", "mai", "juin",
@@ -18,18 +22,34 @@ function initiale(nom) {
   return (nom || "?").trim().charAt(0).toUpperCase();
 }
 
+const estAgent = (profil) => ["admin", "comptable"].includes(profil.role);
+
+// Charge le profil ; si la colonne WhatsApp n'existe pas encore (script SQL pas lancé),
+// on recharge sans elle et le champ WhatsApp reste simplement masqué.
+async function chargerProfil(utilisateurId) {
+  const complet = await supabase
+    .from("profils")
+    .select("nom, email, telephone, bio, photo_url, role, cree_le, whatsapp")
+    .eq("id", utilisateurId)
+    .single();
+  if (!complet.error) return { profil: { ...complet.data, whatsappDisponible: true }, erreur: null };
+
+  const repli = await supabase
+    .from("profils")
+    .select("nom, email, telephone, bio, photo_url, role, cree_le")
+    .eq("id", utilisateurId)
+    .single();
+  return { profil: repli.data ? { ...repli.data, whatsappDisponible: false } : null, erreur: repli.error };
+}
+
 export async function ecranMonProfil(conteneur) {
   const utilisateurId = await idProfilCourant();
 
   conteneur.innerHTML = '<p class="chargement">Chargement…</p>';
 
-  const { data: profil, error } = await supabase
-    .from("profils")
-    .select("nom, email, telephone, bio, photo_url, role, cree_le")
-    .eq("id", utilisateurId)
-    .single();
+  const { profil, erreur } = await chargerProfil(utilisateurId);
 
-  if (error || !profil) {
+  if (erreur || !profil) {
     conteneur.innerHTML = `
       <h2 class="titre-section">Mon profil</h2>
       <hr class="trait-or" />
@@ -42,16 +62,31 @@ export async function ecranMonProfil(conteneur) {
 }
 
 function rendreLecture(conteneur, profil, utilisateurId) {
+  const whatsappRequis = profil.whatsappDisponible && estAgent(profil);
+
   conteneur.innerHTML = `
     <h2 class="titre-section">Espace Membres</h2>
     <hr class="trait-or" />
+
+    ${
+      whatsappRequis && !profil.whatsapp
+        ? `<div class="alerte-agent" style="cursor:default">
+             <p class="alerte-agent-titre">Numéro WhatsApp obligatoire</p>
+             <p class="alerte-agent-texte">
+               En tant que ${profil.role === "admin" ? "administrateur" : "comptable"}, vous êtes un agent d'assistance :
+               renseignez votre numéro WhatsApp pour que les membres puissent vous joindre.
+               Touchez "Modifier" ci-dessous.
+             </p>
+           </div>`
+        : ""
+    }
 
     <div class="carte" style="text-align:center">
       <div style="position:relative; width:88px; height:88px; margin:0 auto 12px">
         <div id="avatar-rond" style="width:88px; height:88px; border-radius:50%; background:var(--fond-carte-claire);
              display:flex; align-items:center; justify-content:center; font-family:var(--police-titre);
              font-size:32px; color:var(--or-texte); overflow:hidden">
-          ${profil.photo_url ? `<img src="${profil.photo_url}" alt="" style="width:100%;height:100%;object-fit:cover" />` : initiale(profil.nom)}
+          ${profil.photo_url ? `<img src="${echapper(profil.photo_url)}" alt="" style="width:100%;height:100%;object-fit:cover" />` : echapper(initiale(profil.nom))}
         </div>
         <button id="bouton-changer-photo" class="bouton-icone" aria-label="Changer la photo de profil"
                 style="position:absolute; bottom:-4px; right:-4px; background:var(--or); color:#3A2B0E; border-radius:50%; padding:6px">
@@ -61,10 +96,10 @@ function rendreLecture(conteneur, profil, utilisateurId) {
         </button>
         <input type="file" id="entree-photo" accept="image/*" hidden />
       </div>
-      <p style="font-family:var(--police-titre); font-size:18px; margin:0">${profil.nom}</p>
-      <p style="color:var(--texte-secondaire); font-size:13px; margin:4px 0 10px">${profil.email}</p>
+      <p style="font-family:var(--police-titre); font-size:18px; margin:0">${echapper(profil.nom)}</p>
+      <p style="color:var(--texte-secondaire); font-size:13px; margin:4px 0 10px">${echapper(profil.email)}</p>
       <span style="display:inline-block; background:var(--fond-carte-claire); color:var(--or-texte);
-             font-size:11px; padding:3px 10px; border-radius:999px; text-transform:capitalize">${profil.role}</span>
+             font-size:11px; padding:3px 10px; border-radius:999px; text-transform:capitalize">${echapper(profil.role)}</span>
       <p style="color:var(--texte-secondaire); font-size:12px; margin-top:14px">${formaterMembreDepuis(profil.cree_le)}</p>
       <p id="erreur-photo" style="color:var(--danger); font-size:12px; margin-top:8px" hidden></p>
     </div>
@@ -75,11 +110,17 @@ function rendreLecture(conteneur, profil, utilisateurId) {
         <button id="bouton-modifier" class="lien">Modifier</button>
       </div>
       <p style="color:var(--texte-secondaire); font-size:12px; margin:0">EMAIL</p>
-      <p style="margin:2px 0 12px">${profil.email}</p>
+      <p style="margin:2px 0 12px">${echapper(profil.email)}</p>
       <p style="color:var(--texte-secondaire); font-size:12px; margin:0">TÉLÉPHONE</p>
-      <p style="margin:2px 0 12px">${profil.telephone || "—"}</p>
+      <p style="margin:2px 0 12px">${echapper(profil.telephone || "—")}</p>
+      ${
+        whatsappRequis
+          ? `<p style="color:var(--texte-secondaire); font-size:12px; margin:0">WHATSAPP (OBLIGATOIRE)</p>
+             <p style="margin:2px 0 12px">${echapper(profil.whatsapp || "—")}</p>`
+          : ""
+      }
       <p style="color:var(--texte-secondaire); font-size:12px; margin:0">BIO</p>
-      <p style="margin:2px 0 0">${profil.bio || "—"}</p>
+      <p style="margin:2px 0 0">${echapper(profil.bio || "—")}</p>
     </div>
   `;
 
@@ -131,23 +172,37 @@ async function televerserPhoto(fichier, utilisateurId, conteneur) {
 }
 
 function rendreEdition(conteneur, profil, utilisateurId) {
+  const whatsappRequis = profil.whatsappDisponible && estAgent(profil);
+
   conteneur.innerHTML = `
     <h2 class="titre-section">Modifier mon profil</h2>
     <hr class="trait-or" />
     <form id="formulaire-profil" class="carte" style="display:flex; flex-direction:column; gap:16px">
       <label class="champ">
         <span>Nom complet</span>
-        <input type="text" name="nom" value="${profil.nom || ""}" required />
+        <input type="text" name="nom" value="${echapper(profil.nom || "")}" required />
       </label>
       <label class="champ">
         <span>Téléphone</span>
-        <input type="tel" name="telephone" value="${profil.telephone || ""}" />
+        <input type="tel" name="telephone" value="${echapper(profil.telephone || "")}" />
       </label>
+      ${
+        whatsappRequis
+          ? `<label class="champ">
+               <span>Numéro WhatsApp (obligatoire)</span>
+               <input type="tel" name="whatsapp" value="${echapper(profil.whatsapp || "")}" placeholder="+229 01 97 00 00 00" required />
+             </label>
+             <p style="margin:-8px 0 0; font-size:12px; color:var(--texte-secondaire)">
+               Avec l'indicatif du pays. Les membres pourront vous écrire directement sur WhatsApp
+               depuis le bouton "Discuter avec un agent".
+             </p>`
+          : ""
+      }
       <label class="champ">
         <span>Bio</span>
         <textarea name="bio" rows="4" style="background:var(--fond); border:1px solid var(--bordure);
                   border-radius:var(--rayon-petit); padding:11px 12px; color:var(--texte); font-family:inherit;
-                  font-size:15px; resize:vertical">${profil.bio || ""}</textarea>
+                  font-size:15px; resize:vertical">${echapper(profil.bio || "")}</textarea>
       </label>
       <p id="erreur-profil" style="color:var(--danger); font-size:13px; margin:0" hidden></p>
       <div style="display:flex; gap:10px">
@@ -165,15 +220,26 @@ function rendreEdition(conteneur, profil, utilisateurId) {
     evenement.preventDefault();
     const donnees = new FormData(evenement.target);
     const erreurProfil = document.getElementById("erreur-profil");
+    erreurProfil.hidden = true;
 
-    const { error } = await supabase
-      .from("profils")
-      .update({
-        nom: donnees.get("nom").trim(),
-        telephone: donnees.get("telephone") || null,
-        bio: donnees.get("bio") || null,
-      })
-      .eq("id", utilisateurId);
+    const miseAJour = {
+      nom: donnees.get("nom").trim(),
+      telephone: donnees.get("telephone") || null,
+      bio: donnees.get("bio") || null,
+    };
+
+    if (whatsappRequis) {
+      const whatsapp = (donnees.get("whatsapp") || "").trim();
+      const chiffres = whatsapp.replace(/\D/g, "");
+      if (chiffres.length < 8 || chiffres.length > 15) {
+        erreurProfil.textContent = "Numéro WhatsApp invalide : indiquez-le avec l'indicatif du pays, par exemple +229 01 97 00 00 00.";
+        erreurProfil.hidden = false;
+        return;
+      }
+      miseAJour.whatsapp = whatsapp;
+    }
+
+    const { error } = await supabase.from("profils").update(miseAJour).eq("id", utilisateurId);
 
     if (error) {
       erreurProfil.textContent = "L'enregistrement a échoué, réessayez.";
@@ -183,4 +249,4 @@ function rendreEdition(conteneur, profil, utilisateurId) {
 
     ecranMonProfil(conteneur);
   });
-}
+    }
