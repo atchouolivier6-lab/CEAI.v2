@@ -2,12 +2,20 @@
 // CEAI — Écran admin "Gestion des membres"
 // Inclut la nomination d'admins (vote à la majorité) et,
 // séparément, la proposition/vote pour élire un comptable
-// parmi les admins (2 "contre" = rejeté, sinon accepté une
-// fois que tous les admins ont voté).
+// parmi les admins. Les votes sont dans admin-membres-votes.js.
+//
+// Les admins et comptables sont les "agents" d'assistance : on ne peut
+// proposer quelqu'un comme admin ou comptable que s'il a renseigné son
+// numéro WhatsApp dans son profil.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
+import { echapper } from "./composants-tableau.js";
+import { gabaritVote, gabaritVoteComptable, evaluerVote } from "./admin-membres-votes.js";
+
+const ICONE_CORBEILLE =
+  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
 
 function initiale(nom) {
   return (nom || "?").trim().charAt(0).toUpperCase();
@@ -21,19 +29,28 @@ function afficherMessage(texte, estErreur) {
   zone.hidden = false;
 }
 
+// Charge les membres ; sans la colonne WhatsApp (script SQL pas lancé), on recharge sans elle
+async function chargerMembres() {
+  const colonnes = "id, nom, role, a_un_compte, telephone, actif";
+  const complet = await supabase.from("profils").select(`${colonnes}, whatsapp`).order("nom");
+  if (!complet.error) return { membres: complet.data, whatsappDisponible: true };
+  const repli = await supabase.from("profils").select(colonnes).order("nom");
+  return { membres: repli.data, whatsappDisponible: false };
+}
+
 export async function ecranAdminMembres(conteneur) {
   conteneur.innerHTML = `<h2 class="titre-section">Gestion des membres</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
   const moiId = await idProfilCourant();
 
   const [
-    { data: membres },
+    { membres, whatsappDisponible },
     { data: votesEnCours },
     { data: toutesLesVoix },
     { data: votesComptableEnCours },
     { data: voixComptable },
   ] = await Promise.all([
-    supabase.from("profils").select("id, nom, role, a_un_compte, telephone, actif").order("nom"),
+    chargerMembres(),
     supabase.from("votes_admin").select("id, candidat_id, propose_par, cree_le").eq("statut", "en_cours"),
     supabase.from("votes_admin_voix").select("vote_id, admin_id, voix"),
     supabase.from("comptable_votes").select("id, candidat_id, propose_par").eq("statut", "en_cours"),
@@ -41,8 +58,14 @@ export async function ecranAdminMembres(conteneur) {
   ]);
 
   const nomParId = Object.fromEntries((membres || []).map((m) => [m.id, m.nom]));
+  const membreParId = Object.fromEntries((membres || []).map((m) => [m.id, m]));
   const nombreAdmins = (membres || []).filter((m) => m.role === "admin").length;
   const idsAvecVoteComptableEnCours = new Set((votesComptableEnCours || []).map((v) => v.candidat_id));
+
+  // Un candidat admin ou comptable doit avoir un numéro WhatsApp (si la colonne existe)
+  const whatsappManquant = (candidatId) => whatsappDisponible && !membreParId[candidatId]?.whatsapp;
+  const MESSAGE_WHATSAPP =
+    "doit d'abord renseigner son numéro WhatsApp dans son profil : il est obligatoire pour les administrateurs et les comptables.";
 
   conteneur.innerHTML = `
     <h2 class="titre-section">Gestion des membres</h2>
@@ -88,7 +111,7 @@ export async function ecranAdminMembres(conteneur) {
     <div id="liste-membres"></div>
   `;
 
-  rendreListeMembres(membres || [], moiId, nombreAdmins, idsAvecVoteComptableEnCours, conteneur);
+  rendreListeMembres(membres || [], moiId, idsAvecVoteComptableEnCours, conteneur, whatsappDisponible);
 
   // --- Détection de doublon de nom pendant la saisie -----------------------
   const champNom = document.querySelector("#formulaire-nouveau-membre input[name='nom']");
@@ -97,7 +120,7 @@ export async function ecranAdminMembres(conteneur) {
     const nomSaisi = champNom.value.trim().toLowerCase();
     const homonyme = nomSaisi && (membres || []).find((m) => m.nom.trim().toLowerCase() === nomSaisi);
     if (homonyme) {
-      avertissementDoublon.textContent = `⚠️ Un membre nommé "${homonyme.nom}" existe déjà. Vérifiez qu'il ne s'agit pas d'un doublon avant de continuer.`;
+      avertissementDoublon.textContent = `Attention : un membre nommé "${homonyme.nom}" existe déjà. Vérifiez qu'il ne s'agit pas d'un doublon avant de continuer.`;
       avertissementDoublon.hidden = false;
     } else {
       avertissementDoublon.hidden = true;
@@ -132,8 +155,13 @@ export async function ecranAdminMembres(conteneur) {
     ecranAdminMembres(conteneur);
   });
 
+  // --- Proposer un admin ---------------------------------------------------
   conteneur.querySelectorAll("[data-proposer]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
+      if (whatsappManquant(bouton.dataset.proposer)) {
+        afficherMessage(`${bouton.dataset.nom} ${MESSAGE_WHATSAPP}`, true);
+        return;
+      }
       const { error } = await supabase.from("votes_admin").insert({
         candidat_id: bouton.dataset.proposer,
         propose_par: moiId,
@@ -161,6 +189,10 @@ export async function ecranAdminMembres(conteneur) {
   // --- Proposer un comptable -------------------------------------------------
   conteneur.querySelectorAll("[data-proposer-comptable]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
+      if (whatsappManquant(bouton.dataset.proposerComptable)) {
+        afficherMessage(`${bouton.dataset.nom} ${MESSAGE_WHATSAPP}`, true);
+        return;
+      }
       if (!window.confirm(`Proposer ${bouton.dataset.nom} comme comptable ? Les autres admins vont voter.`)) return;
 
       const { data: nouveauVote, error } = await supabase
@@ -205,98 +237,36 @@ export async function ecranAdminMembres(conteneur) {
   });
 }
 
-function gabaritVote(vote, toutesLesVoix, nomParId, nombreAdmins, moiId) {
-  const voixDuVote = toutesLesVoix.filter((v) => v.vote_id === vote.id);
-  const pour = voixDuVote.filter((v) => v.voix).length;
-  const contre = voixDuVote.filter((v) => !v.voix).length;
-  const jaiDejaVote = voixDuVote.some((v) => v.admin_id === moiId);
-
-  return `
-    <div class="carte">
-      <p style="margin:0; font-weight:500">${nomParId[vote.candidat_id] || "—"}</p>
-      <p style="margin:4px 0 12px; font-size:12px; color:var(--texte-secondaire)">
-        Proposé par ${nomParId[vote.propose_par] || "—"} · ${pour} pour / ${contre} contre (sur ${nombreAdmins} admins)
-      </p>
-      ${
-        jaiDejaVote
-          ? `<p style="margin:0; font-size:13px; color:var(--texte-secondaire)">Vous avez déjà voté.</p>`
-          : `<div style="display:flex; gap:8px">
-              <button data-voter="${vote.id}|pour" class="bouton" style="background:#4C9A6A; color:#fff; padding:8px 14px; font-size:13px">Voter pour</button>
-              <button data-voter="${vote.id}|contre" class="bouton" style="background:var(--danger); color:#fff; padding:8px 14px; font-size:13px">Voter contre</button>
-            </div>`
-      }
-    </div>
-  `;
-}
-
-function gabaritVoteComptable(vote, toutesLesVoix, nomParId, nombreAdmins, moiId) {
-  const voixDuVote = toutesLesVoix.filter((v) => v.vote_id === vote.id);
-  const pour = voixDuVote.filter((v) => v.choix === "pour").length;
-  const contre = voixDuVote.filter((v) => v.choix === "contre").length;
-  const jaiDejaVote = voixDuVote.some((v) => v.admin_id === moiId);
-  const totalAdminsConcernes = Math.max(nombreAdmins - 1, 0);
-
-  return `
-    <div class="carte" style="background:var(--fond-carte-claire)">
-      <p style="margin:0; font-weight:500">${nomParId[vote.candidat_id] || "—"} comme comptable</p>
-      <p style="margin:4px 0 12px; font-size:12px; color:var(--texte-secondaire)">
-        Proposé par ${nomParId[vote.propose_par] || "—"} · ${pour} pour / ${contre} contre (sur ${totalAdminsConcernes} admins concernés)
-      </p>
-      ${
-        jaiDejaVote
-          ? `<p style="margin:0; font-size:13px; color:var(--texte-secondaire)">Vous avez déjà voté.</p>`
-          : `<div style="display:flex; gap:8px">
-              <button data-voter-comptable="${vote.id}|pour" class="bouton" style="background:#4C9A6A; color:#fff; padding:8px 14px; font-size:13px">Voter pour</button>
-              <button data-voter-comptable="${vote.id}|contre" class="bouton" style="background:var(--danger); color:#fff; padding:8px 14px; font-size:13px">Voter contre</button>
-            </div>`
-      }
-    </div>
-  `;
-}
-
-async function evaluerVote(voteId, nombreAdmins) {
-  const { data: voix } = await supabase.from("votes_admin_voix").select("voix").eq("vote_id", voteId);
-  const pour = (voix || []).filter((v) => v.voix).length;
-  const contre = (voix || []).filter((v) => !v.voix).length;
-  const majorite = Math.floor(nombreAdmins / 2) + 1;
-
-  if (pour >= majorite) {
-    const { data: vote } = await supabase.from("votes_admin").select("candidat_id").eq("id", voteId).single();
-    await supabase.from("votes_admin").update({ statut: "valide" }).eq("id", voteId);
-    await supabase.from("profils").update({ role: "admin" }).eq("id", vote.candidat_id);
-    notifier("Un nouvel administrateur a été nommé par vote.");
-  } else if (pour + contre >= nombreAdmins) {
-    await supabase.from("votes_admin").update({ statut: "rejete" }).eq("id", voteId);
-  }
-}
-
-function rendreListeMembres(membres, moiId, nombreAdmins, idsAvecVoteComptableEnCours, conteneurParent) {
+function rendreListeMembres(membres, moiId, idsAvecVoteComptableEnCours, conteneurParent, whatsappDisponible) {
   const conteneurListe = document.getElementById("liste-membres");
   conteneurListe.innerHTML = membres
-    .map(
-      (m) => `
+    .map((m) => {
+      const nom = echapper(m.nom);
+      const agentSansWhatsapp = whatsappDisponible && ["admin", "comptable"].includes(m.role) && !m.whatsapp;
+      return `
     <div class="carte" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; opacity:${m.actif ? "1" : "0.55"}">
       <div style="width:36px; height:36px; min-width:36px; border-radius:50%; background:var(--fond-carte-claire);
            display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--or-texte)">
-        ${initiale(m.nom)}
+        ${echapper(initiale(m.nom))}
       </div>
       <div style="flex:1; min-width:120px">
-        <p style="margin:0; font-size:14px; font-weight:500">${m.nom} ${m.id === moiId ? "(vous)" : ""} ${!m.actif ? "— Retiré" : ""}</p>
+        <p style="margin:0; font-size:14px; font-weight:500">${nom} ${m.id === moiId ? "(vous)" : ""} ${!m.actif ? "— Retiré" : ""}</p>
         <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">
-          ${m.telephone || "—"} ${!m.a_un_compte ? "· Sans compte" : ""}
+          ${echapper(m.telephone || "—")} ${!m.a_un_compte ? "· Sans compte" : ""}
+          ${agentSansWhatsapp ? `<span style="color:var(--or-texte)"> · WhatsApp manquant</span>` : ""}
         </p>
       </div>
       <span style="font-size:11px; color:var(--or-texte); background:var(--fond-carte-claire); padding:2px 8px;
-            border-radius:999px; text-transform:capitalize">${m.role}</span>
+            border-radius:999px; text-transform:capitalize">${echapper(m.role)}</span>
       ${
         m.role !== "admin"
-          ? `<button data-proposer="${m.id}" data-nom="${m.nom}" class="bouton" style="background:var(--fond-carte-claire);
+          ? `<button data-proposer="${m.id}" data-nom="${nom}" class="bouton" style="background:var(--fond-carte-claire);
                color:var(--texte); padding:6px 10px; font-size:12px; white-space:nowrap">Proposer admin</button>`
           : ""
       }
       ${
         m.role === "admin" && !idsAvecVoteComptableEnCours.has(m.id)
-          ? `<button data-proposer-comptable="${m.id}" data-nom="${m.nom}" class="bouton" style="background:var(--fond-carte-claire);
+          ? `<button data-proposer-comptable="${m.id}" data-nom="${nom}" class="bouton" style="background:var(--fond-carte-claire);
                color:var(--texte); padding:6px 10px; font-size:12px; white-space:nowrap">Proposer comptable</button>`
           : ""
       }
@@ -312,12 +282,12 @@ function rendreListeMembres(membres, moiId, nombreAdmins, idsAvecVoteComptableEn
         !m.a_un_compte
           ? `<button data-adherer-pour="${m.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte);
                padding:6px 10px; font-size:12px; white-space:nowrap">Adhérer cotisation</button>
-             <button data-supprimer-def="${m.id}" data-nom="${m.nom}" class="bouton-icone" aria-label="Supprimer définitivement" style="color:var(--danger)">🗑</button>`
+             <button data-supprimer-def="${m.id}" data-nom="${nom}" class="bouton-icone" aria-label="Supprimer définitivement" style="color:var(--danger)">${ICONE_CORBEILLE}</button>`
           : ""
       }
     </div>
-  `
-    )
+  `;
+    })
     .join("");
 
   conteneurListe.querySelectorAll("[data-adherer-pour]").forEach((bouton) => {
