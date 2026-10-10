@@ -231,4 +231,4 @@ export async function ouvrirFeuilleAgents({ moiId }) {
     if (evenement.target === voile) fermer();
   });
   voile.querySelector(".agents-fermer").addEventListener("click", fermer);
-      }
+    }
