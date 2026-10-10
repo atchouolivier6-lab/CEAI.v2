@@ -89,4 +89,4 @@ export function panneauPublications(publications) {
       <p class="panneau-tableau-titre">Dernières publications</p>
       <div class="publications-liste">${cartes}</div>
     </div>`;
-  }
+}
