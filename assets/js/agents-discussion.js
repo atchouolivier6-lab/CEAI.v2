@@ -141,4 +141,4 @@ export function ouvrirDiscussion({ conteneur, moiId, clientId, agentId, titre, s
   });
 
   return { fermer };
-}
+    }
