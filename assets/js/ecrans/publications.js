@@ -241,4 +241,4 @@ function brancherInteractions(conteneur, moiId, jeSuisAdmin) {
       rafraichirFil(conteneur, moiId, jeSuisAdmin);
     });
   });
-}
+    }
