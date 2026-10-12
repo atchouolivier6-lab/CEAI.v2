@@ -105,4 +105,4 @@ export async function afficherBanniereInvitation() {
   }
 
   logo.insertAdjacentElement("afterend", banniere);
-  }
+}
