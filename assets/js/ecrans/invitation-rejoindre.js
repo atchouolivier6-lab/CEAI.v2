@@ -199,4 +199,4 @@ export async function ecranInvitation(conteneur, parametres) {
   }
 
   afficher(conteneur, invitation);
-                          }
+    }
