@@ -11,6 +11,8 @@
 //    e-mail, copie du lien, et le partage natif du téléphone
 // =========================================================
 import { supabase } from "./supabase-client.js";
+import { ADRESSE_PUBLIQUE } from "./config-site.js";
+import { raccourcirLien } from "./lien-court.js";
 import { echapper } from "./ecrans/composants-tableau.js";
 
 const LIBELLES = {
@@ -33,20 +35,34 @@ function slugifier(nom) {
 }
 
 // Lien propre à CHAQUE session / cycle : nom lisible + code unique créé à l'ouverture.
-// Si le code n'est pas disponible (script SQL pas encore lancé), on utilise l'identifiant complet.
+// Renvoie { lien, note } :
+//  - site sur votre propre adresse (config-site.js) : lien direct, déjà court et propre
+//  - site encore sur GitHub : lien raccourci automatiquement, pour ne pas montrer l'adresse GitHub
+//  - si le raccourcisseur est injoignable : lien complet + une note pour l'expliquer
 export async function lienInvitation(type, id, nom) {
-  const base = window.location.href.split("#")[0];
-  let reference = id;
+  const publique = (ADRESSE_PUBLIQUE || "").trim();
+  const base = (publique || window.location.href).split("#")[0];
+
+  let reference = id; // repli : identifiant complet
+  let code = null;
   try {
     const { data } = await supabase.from(TABLES[type]).select("code_invitation").eq("id", id).maybeSingle();
     if (data?.code_invitation) {
+      code = data.code_invitation;
       const slug = slugifier(nom);
-      reference = slug ? `${slug}-${data.code_invitation}` : data.code_invitation;
+      reference = slug ? `${slug}-${code}` : code;
     }
   } catch {
     // on garde l'identifiant complet
   }
-  return `${base}#invitation/${type}/${reference}`;
+
+  const complet = `${base}#invitation/${type}/${reference}`;
+  if (publique) return { lien: complet, note: "" };
+
+  const court = await raccourcirLien(complet, code ? `ceai_${code}` : null);
+  return court
+    ? { lien: court, note: "" }
+    : { lien: complet, note: "Le raccourcisseur de lien est indisponible : le lien complet est utilisé." };
 }
 
 const ICONES = {
@@ -68,7 +84,7 @@ function pastille({ couleur, lettre, icone }) {
 // Feuille de partage
 // ---------------------------------------------------------
 async function ouvrirFeuille({ type, id, nom }) {
-  const lien = await lienInvitation(type, id, nom);
+  const { lien, note } = await lienInvitation(type, id, nom);
   const intro = `Je vous invite à rejoindre ${LIBELLES[type]} « ${nom} » sur CEAI (Connaissance Entre Amis Intimes).`;
   const message = `${intro} Touchez ce lien pour y accéder : ${lien}`;
   const enc = encodeURIComponent;
@@ -125,6 +141,10 @@ async function ouvrirFeuille({ type, id, nom }) {
   document.body.classList.add("tirage-ouvert"); // bloque le défilement de la page derrière
 
   const retour = voile.querySelector(".partage-retour");
+  if (note) {
+    retour.textContent = note;
+    retour.style.color = "var(--texte-secondaire)";
+  }
   const champ = voile.querySelector(".partage-lien input");
 
   const fermer = () => {
@@ -146,6 +166,7 @@ async function ouvrirFeuille({ type, id, nom }) {
   voile.querySelectorAll("[data-partage-copier]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
       const copie = await copierTexte(lien, champ);
+      retour.style.color = "";
       retour.textContent = copie ? "Lien copié. Vous pouvez le coller où vous voulez." : "Copie impossible : sélectionnez le lien et copiez-le à la main.";
     });
   });
@@ -269,4 +290,4 @@ export function initialiserPartage() {
   );
 
   injecter(zone);
-        }
+}
