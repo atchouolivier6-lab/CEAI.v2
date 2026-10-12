@@ -249,4 +249,4 @@ function rendreEdition(conteneur, profil, utilisateurId) {
 
     ecranMonProfil(conteneur);
   });
-    }
+                }
