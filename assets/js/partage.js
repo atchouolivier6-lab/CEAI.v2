@@ -269,4 +269,4 @@ export function initialiserPartage() {
   );
 
   injecter(zone);
-    }
+        }
