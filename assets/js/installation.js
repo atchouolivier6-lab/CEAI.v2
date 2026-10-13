@@ -271,4 +271,4 @@ export function initialiserInstallation() {
 
   // Sinon : invitation discrète (reportable 7 jours), dès l'écran de connexion
   afficherBandeauInstallation();
-    }
+      }
