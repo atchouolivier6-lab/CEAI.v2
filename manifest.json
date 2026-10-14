@@ -1,0 +1,40 @@
+{
+  "id": "./",
+  "name": "CEAI — Connaissance Entre Amis Intimes",
+  "short_name": "CEAI",
+  "description": "Cotisation, tontine et épargne entre amis intimes. Engagement, Rigueur, Amitié.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#12251c",
+  "theme_color": "#12251c",
+  "categories": ["finance", "social"],
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Mon épargne",
+      "short_name": "Épargne",
+      "url": "./#epargne/comptes",
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Mes cotisations",
+      "short_name": "Cotisation",
+      "url": "./#cotisation/suivi",
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Ma tontine",
+      "short_name": "Tontine",
+      "url": "./#tontine/suivi",
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+    }
