@@ -28,9 +28,9 @@ export async function partagerApplication() {
     titre: "Partager l'application",
     nom: "Installer CEAI",
     aide:
-      "La personne qui touche ce lien voit directement comment installer CEAI sur son téléphone ou son ordinateur, " +
-      "puis peut créer son compte ou se connecter.",
-    intro: "Installez l'application CEAI (Connaissance Entre Amis Intimes) sur votre téléphone ou votre ordinateur.",
+    
+      "Créer votre compte ou se connecter.",
+    intro: "Installez l'application CEAI (Connaissance Entre Amis Intimes) .",
     phraseLien: "Touchez ce lien et suivez les instructions",
     sujet: "Installez l'application CEAI",
     lien,
