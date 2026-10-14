@@ -85,8 +85,21 @@ function pastille({ couleur, lettre, icone }) {
 // ---------------------------------------------------------
 async function ouvrirFeuille({ type, id, nom }) {
   const { lien, note } = await lienInvitation(type, id, nom);
-  const intro = `Je vous invite à rejoindre ${LIBELLES[type]} « ${nom} » sur CEAI (Connaissance Entre Amis Intimes).`;
-  const message = `${intro} Touchez ce lien pour y accéder : ${lien}`;
+  ouvrirFeuilleLien({
+    titre: "Inviter à rejoindre",
+    nom,
+    aide: `Les personnes qui touchent ce lien arrivent directement sur ${LIBELLES[type]}. Si elles n'ont pas encore de compte, elles seront d'abord invitées à s'inscrire.`,
+    intro: `Je vous invite à rejoindre ${LIBELLES[type]} « ${nom} » sur CEAI (Connaissance Entre Amis Intimes).`,
+    phraseLien: "Touchez ce lien pour y accéder",
+    sujet: `Invitation CEAI : ${nom}`,
+    lien,
+    note,
+  });
+}
+
+// Feuille de partage générique : sessions, cycles, et l'application elle-même
+export function ouvrirFeuilleLien({ titre, nom, aide, intro, phraseLien, sujet, lien, note }) {
+  const message = `${intro} ${phraseLien} : ${lien}`;
   const enc = encodeURIComponent;
 
   const reseaux = [
@@ -94,25 +107,22 @@ async function ouvrirFeuille({ type, id, nom }) {
     { nom: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${enc(lien)}`, couleur: "#1877F2", lettre: "f", externe: true },
     { nom: "Telegram", href: `https://t.me/share/url?url=${enc(lien)}&text=${enc(intro)}`, couleur: "#229ED9", lettre: "T", externe: true },
     { nom: "SMS", href: `sms:?&body=${enc(message)}`, icone: "sms" },
-    { nom: "E-mail", href: `mailto:?subject=${enc("Invitation CEAI : " + nom)}&body=${enc(message)}`, icone: "mail" },
+    { nom: "E-mail", href: `mailto:?subject=${enc(sujet)}&body=${enc(message)}`, icone: "mail" },
   ];
 
   const voile = document.createElement("div");
   voile.className = "partage-voile";
   voile.setAttribute("role", "dialog");
   voile.setAttribute("aria-modal", "true");
-  voile.setAttribute("aria-label", "Partager l'invitation");
+  voile.setAttribute("aria-label", titre);
   voile.innerHTML = `
     <div class="partage-feuille">
       <div class="partage-entete">
-        <p class="partage-titre">Inviter à rejoindre</p>
+        <p class="partage-titre">${echapper(titre)}</p>
         <button type="button" class="partage-fermer" aria-label="Fermer">✕</button>
       </div>
       <p class="partage-nom">${echapper(nom)}</p>
-      <p class="partage-aide">
-        Les personnes qui touchent ce lien arrivent directement sur ${LIBELLES[type]}.
-        Si elles n'ont pas encore de compte, elles seront d'abord invitées à s'inscrire.
-      </p>
+      <p class="partage-aide">${echapper(aide)}</p>
 
       <div class="partage-lien">
         <input type="text" readonly value="${echapper(lien)}" aria-label="Lien d'invitation" />
@@ -173,7 +183,7 @@ async function ouvrirFeuille({ type, id, nom }) {
 
   voile.querySelector("[data-partage-natif]")?.addEventListener("click", async () => {
     try {
-      await navigator.share({ title: `Invitation CEAI : ${nom}`, text: intro, url: lien });
+      await navigator.share({ title: sujet, text: intro, url: lien });
     } catch {
       // l'utilisateur a simplement fermé la fenêtre de partage
     }
