@@ -1,0 +1,98 @@
+/* =========================================================
+   CEAI — Installation de l'application et mode hors connexion
+   ========================================================= */
+
+/* ---------- Bandeau d'invitation ---------- */
+.bandeau-installation {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 950;
+  max-width: 460px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--or-texte);
+  border-radius: 18px;
+  background: var(--fond);
+  color: var(--texte);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  animation: partage-monte 0.3s ease;
+}
+.bandeau-installation img {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+.bandeau-texte {
+  flex: 1;
+  min-width: 0;
+}
+.bandeau-titre {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.bandeau-sous {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--texte-secondaire);
+}
+.bandeau-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.bandeau-actions .bouton {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+.bandeau-fermer {
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--texte-secondaire);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* ---------- Mode d'emploi ---------- */
+.installation-voile {
+  z-index: 1200;
+}
+.installation-etapes {
+  margin: 14px 0 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.installation-note {
+  margin: 16px 0 0;
+  font-size: 12px;
+  color: var(--texte-secondaire);
+}
+
+/* ---------- Hors connexion ---------- */
+.barre-hors-ligne {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1300;
+  padding: 8px 12px;
+  background: #8f6410;
+  color: #fff;
+  font-size: 12px;
+  text-align: center;
+}
+.barre-hors-ligne[hidden] {
+  display: none;
+}
