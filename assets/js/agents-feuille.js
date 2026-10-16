@@ -3,12 +3,15 @@
 // Les agents = tous les administrateurs et comptables actifs.
 // La liste se recharge toute seule (en direct + toutes les 30 s)
 // et à chaque ouverture. Pour chaque agent : discussion sur le site
-// et, si son numéro est renseigné, discussion sur WhatsApp.
+// et, si son numéro est renseigné, message structuré sur WhatsApp.
 // Un agent voit aussi les discussions que les membres lui ont écrites.
+// Le bouton retour du téléphone ferme la discussion, puis la feuille.
 // =========================================================
 import { supabase } from "./supabase-client.js";
 import { echapper, tempsRelatif } from "./ecrans/composants-tableau.js";
 import { ouvrirDiscussion } from "./agents-discussion.js";
+import { ouvrirMessageWhatsapp } from "./agents-message.js";
+import { lierRetour } from "./retour-fenetre.js";
 
 const ROLES = { admin: "Administrateur", comptable: "Comptable" };
 
@@ -68,6 +71,7 @@ export async function ouvrirFeuilleAgents({ moiId }) {
 
   const corps = voile.querySelector(".agents-corps");
   let discussion = null;
+  let detacherFil = () => {};
 
   // ---------- Liste des agents et des messages reçus ----------
   async function afficherListe() {
@@ -89,7 +93,7 @@ export async function ouvrirFeuilleAgents({ moiId }) {
     const lignesAgents = autres.length
       ? autres
           .map((a) => {
-            const wa = lienWhatsapp(a.whatsapp, "Bonjour, j'ai besoin d'aide sur CEAI.");
+            const aWhatsapp = Boolean(lienWhatsapp(a.whatsapp, "x"));
             const nonLus = nonLusDe(a.id);
             return `
           <div class="agent-ligne">
@@ -102,7 +106,7 @@ export async function ouvrirFeuilleAgents({ moiId }) {
               <button type="button" class="bouton bouton-or agent-bouton" data-discuter="${a.id}">
                 Discuter ici${nonLus ? `<span class="agent-badge">${nonLus}</span>` : ""}
               </button>
-              ${wa ? `<a class="bouton agent-bouton agent-wa" href="${echapper(wa)}" target="_blank" rel="noopener">WhatsApp</a>` : ""}
+              ${aWhatsapp ? `<button type="button" class="bouton agent-bouton agent-wa" data-whatsapp="${a.id}">WhatsApp</button>` : ""}
             </div>
           </div>`;
           })
@@ -169,6 +173,18 @@ export async function ouvrirFeuilleAgents({ moiId }) {
       });
     });
 
+    corps.querySelectorAll("[data-whatsapp]").forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        const agent = agents.find((a) => a.id === bouton.dataset.whatsapp);
+        ouvrirMessageWhatsapp({
+          moiId,
+          agent,
+          role: ROLES[agent.role] || "Agent",
+          construireLien: (message) => lienWhatsapp(agent.whatsapp, message),
+        });
+      });
+    });
+
     const ouvrirRecu = (clientId) => {
       const profil = clients.find((p) => p.id === clientId);
       ouvrirFil({ clientId, agentId: moiId, titre: profil?.nom || "Membre", sousTitre: "Membre", photo: profil?.photo_url });
@@ -181,16 +197,27 @@ export async function ouvrirFeuilleAgents({ moiId }) {
     });
   }
 
+  function revenirALaListe() {
+    discussion = null;
+    detacherFil = () => {};
+    afficherListe();
+    window.dispatchEvent(new Event("ceai:agents-maj"));
+  }
+
   function ouvrirFil(options) {
     discussion = ouvrirDiscussion({
       conteneur: corps,
       moiId,
       ...options,
       retour: () => {
-        discussion = null;
-        afficherListe();
-        window.dispatchEvent(new Event("ceai:agents-maj"));
+        detacherFil();
+        revenirALaListe();
       },
+    });
+    // Bouton retour du téléphone : on revient à la liste des agents
+    detacherFil = lierRetour(() => {
+      discussion?.fermer();
+      revenirALaListe();
     });
   }
 
@@ -212,8 +239,11 @@ export async function ouvrirFeuilleAgents({ moiId }) {
     })
     .subscribe();
 
-  // ---------- Fermeture ----------
-  const fermer = () => {
+  // ---------- Fermeture (bouton, Échap, clic dehors, retour du téléphone) ----------
+  const surTouche = (evenement) => {
+    if (evenement.key === "Escape" && !document.querySelector(".wa-voile")) fermer();
+  };
+  const nettoyer = () => {
     clearInterval(minuteur);
     supabase.removeChannel(canal);
     discussion?.fermer();
@@ -222,13 +252,16 @@ export async function ouvrirFeuilleAgents({ moiId }) {
     document.removeEventListener("keydown", surTouche);
     window.dispatchEvent(new Event("ceai:agents-maj"));
   };
-  const surTouche = (evenement) => {
-    if (evenement.key === "Escape") fermer();
+  const detacherFeuille = lierRetour(nettoyer);
+  const fermer = () => {
+    detacherFil();
+    detacherFeuille();
+    nettoyer();
   };
-  document.addEventListener("keydown", surTouche);
 
+  document.addEventListener("keydown", surTouche);
   voile.addEventListener("click", (evenement) => {
     if (evenement.target === voile) fermer();
   });
   voile.querySelector(".agents-fermer").addEventListener("click", fermer);
-    }
+            }
