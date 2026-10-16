@@ -38,10 +38,60 @@
 <body>
 
 <!-- ===================== ÉCRAN DE DÉMARRAGE ===================== -->
+<!-- Affiché le temps de relire la session ; retiré par auth.js.
+     Si l'application ne démarre pas, un encadré en bas explique pourquoi. -->
 <div id="ecran-demarrage" class="ecran-demarrage" role="status" aria-label="Chargement">
   <img src="assets/icons/icon-192.png" alt="CEAI" />
+  <div id="demarrage-probleme" style="display:none;position:absolute;left:16px;right:16px;bottom:24px;padding:12px;border-radius:10px;background:#0b1812;color:#f3efe2;font:13px/1.45 system-ui,sans-serif;white-space:pre-wrap;word-break:break-word"></div>
 </div>
- 
+<script>
+(function () {
+  var erreurs = [];
+  function afficher() {
+    var splash = document.getElementById("ecran-demarrage");
+    var zone = document.getElementById("demarrage-probleme");
+    if (!splash || splash.hidden || !zone) return;
+    zone.style.display = "block";
+    zone.textContent = "Problème au démarrage :\n" + erreurs.join("\n");
+  }
+  function noter(texte) { erreurs.push(texte); afficher(); }
+
+  window.addEventListener("error", function (e) {
+    var cible = e.target && e.target !== window ? (e.target.src || e.target.href) : "";
+    noter(cible ? "Fichier non chargé : " + cible
+                : (e.message || "erreur") + (e.filename ? " (" + e.filename.split("/").slice(-2).join("/") + ":" + e.lineno + ")" : ""));
+  }, true);
+  window.addEventListener("unhandledrejection", function (e) {
+    noter("Erreur : " + ((e.reason && e.reason.message) || e.reason));
+  });
+
+  // Vérifie que les nouveaux fichiers sont bien en place et à jour
+  [
+    ["assets/js/auth.js", "ecran-demarrage"],
+    ["assets/js/router.js", "hashchange"],
+    ["assets/js/retour-fenetre.js", "lierRetour"],
+    ["assets/js/agents-message.js", "ouvrirMessageWhatsapp"],
+    ["assets/js/agents-feuille.js", "agents-message.js"],
+    ["assets/js/app.js", "evenement.detail"]
+  ].forEach(function (f) {
+    fetch(f[0], { cache: "no-store" }).then(function (r) {
+      if (!r.ok) { noter("Introuvable (" + r.status + ") : " + f[0]); return; }
+      return r.text().then(function (t) {
+        if (t.indexOf(f[1]) === -1) noter("Ancienne version : " + f[0]);
+      });
+    }).catch(function () {});
+  });
+
+  setTimeout(function () {
+    var splash = document.getElementById("ecran-demarrage");
+    if (splash && !splash.hidden && !erreurs.length) {
+      noter("Aucune erreur détectée, mais l'application n'a pas démarré.");
+    }
+  }, 6000);
+})();
+</script>
+
+<!-- ===================== ÉCRAN AUTHENTIFICATION ===================== -->
 <div id="ecran-auth" class="ecran-auth" hidden>
   <div class="auth-carte">
     <p class="auth-slogan">Engagement · Rigueur · Amitié</p>
@@ -229,4 +279,4 @@
 <script type="module" src="assets/js/router.js"></script>
 <script type="module" src="assets/js/app.js"></script>
 </body>
-        </html>
+      </html>
