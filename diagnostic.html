@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Diagnostic CEAI</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; margin: 0; padding: 16px; background: #12251c; color: #f3efe2; }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  pre { white-space: pre-wrap; word-break: break-word; margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; background: #0b1812; font: 13px/1.45 ui-monospace, monospace; }
+  .ok { color: #7bd88f; }
+  .ko { color: #ff8a80; }
+  .info { color: #e8c766; }
+</style>
+</head>
+<body>
+<h1>Diagnostic CEAI</h1>
+<div id="sortie"></div>
+<div id="faux-site" hidden></div>
+
+<script type="module">
+const sortie = document.getElementById("sortie");
+function ligne(classe, texte) {
+  const p = document.createElement("pre");
+  p.className = classe;
+  p.textContent = texte;
+  sortie.appendChild(p);
+}
+
+// Fichier -> morceau de texte qui prouve que la NOUVELLE version est en place
+const fichiers = [
+  ["assets/js/supabase-client.js", null],
+  ["assets/js/mon-profil.js", null],
+  ["assets/js/invitation.js", null],
+  ["assets/js/partage.js", null],
+  ["assets/js/installation.js", null],
+  ["assets/js/ecrans/composants-tableau.js", null],
+  ["assets/js/retour-fenetre.js", "lierRetour"],
+  ["assets/js/agents-discussion.js", null],
+  ["assets/js/agents-message.js", "ouvrirMessageWhatsapp"],
+  ["assets/js/agents-feuille.js", "agents-message.js"],
+  ["assets/js/agents-bouton.js", null],
+  ["assets/js/auth.js", "ecran-demarrage"],
+  ["assets/js/router.js", "hashchange"],
+  ["assets/js/app.js", "evenement.detail"],
+  ["assets/css/ameliorations.css", "ecran-demarrage"],
+  ["index.html", "ameliorations.css"],
+];
+
+// 1) Les fichiers existent-ils, et sont-ils à jour ?
+let indexHtml = "";
+for (const [chemin, marque] of fichiers) {
+  try {
+    const r = await fetch(chemin + "?d=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) {
+      ligne("ko", "INTROUVABLE (" + r.status + ") : " + chemin);
+      continue;
+    }
+    const texte = await r.text();
+    if (chemin === "index.html") indexHtml = texte;
+    if (marque && !texte.includes(marque)) {
+      ligne("ko", "ANCIENNE VERSION : " + chemin);
+    } else {
+      ligne("ok", "présent" + (marque ? " et à jour" : "") + " : " + chemin);
+    }
+  } catch (e) {
+    ligne("ko", "ERREUR de lecture : " + chemin);
+  }
+}
+if (indexHtml && !indexHtml.includes('id="ecran-demarrage"')) {
+  ligne("ko", "index.html : le bloc ecran-demarrage est ABSENT");
+}
+
+// 2) Les fichiers se chargent-ils sans erreur ? (dans l'ordre des dépendances)
+const faux = document.getElementById("faux-site");
+if (indexHtml) {
+  const doc = new DOMParser().parseFromString(indexHtml, "text/html");
+  doc.querySelectorAll("script").forEach((s) => s.remove());
+  faux.innerHTML = doc.body.innerHTML;
+}
+
+ligne("info", "--- Chargement des scripts ---");
+const aCharger = [
+  "assets/js/supabase-client.js",
+  "assets/js/ecrans/composants-tableau.js",
+  "assets/js/retour-fenetre.js",
+  "assets/js/agents-discussion.js",
+  "assets/js/agents-message.js",
+  "assets/js/agents-feuille.js",
+  "assets/js/agents-bouton.js",
+  "assets/js/auth.js",
+  "assets/js/router.js",
+];
+for (const chemin of aCharger) {
+  try {
+    await import("./" + chemin);
+    ligne("ok", "se charge bien : " + chemin);
+  } catch (e) {
+    ligne("ko", "ERREUR au chargement de " + chemin + "\n" + (e && e.message ? e.message : e));
+  }
+}
+ligne("info", "Diagnostic terminé. Envoyez-moi une capture de cet écran.");
+</script>
+</body>
+</html>
