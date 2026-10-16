@@ -147,8 +147,12 @@ async function afficherMenuSelonRole() {
 }
 
 // --- Démarrage -------------------------------------------------------------
-document.addEventListener("ceai:connecte", () => {
-  document.getElementById("menu-accordeon").hidden = false;
+document.addEventListener("ceai:connecte", (evenement) => {
+  // le menu ne s'ouvre tout seul qu'après une vraie connexion, pas à l'actualisation
+  menuAccordeon.hidden = !(evenement.detail && evenement.detail.connexion);
+ 
+(Le reste de app.js ne change pas.)
+
   afficherMenuSelonRole();
   chargerNotifications();
   ecouterNotificationsEnDirect();
