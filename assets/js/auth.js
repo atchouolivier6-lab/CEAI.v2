@@ -1,8 +1,12 @@
 // =========================================================
 // CEAI — Authentification
+// Au démarrage, un écran de chargement (logo) reste affiché le temps
+// de relire la session enregistrée : plus de passage par la page de
+// connexion à l'actualisation.
 // =========================================================
 import { supabase } from "./supabase-client.js";
 
+const ecranDemarrage = document.getElementById("ecran-demarrage");
 const ecranAuth = document.getElementById("ecran-auth");
 const appShell = document.getElementById("app-shell");
 
@@ -14,6 +18,8 @@ const texteBasculeConnexion = document.getElementById("texte-bascule-connexion")
 const texteBasculeInscription = document.getElementById("texte-bascule-inscription");
 const messageConfirmationEmail = document.getElementById("message-confirmation-email");
 const boutonDeconnexion = document.getElementById("bouton-deconnexion");
+
+let applicationAffichee = false;
 
 function afficherErreur(formulaireId, texte) {
   const p = document.querySelector(`[data-erreur-pour="${formulaireId}"]`);
@@ -47,7 +53,6 @@ boutonVersConnexion.addEventListener("click", () => {
 document.querySelectorAll(".bouton-oeil").forEach((bouton) => {
   bouton.addEventListener("click", () => {
     const formulaire = document.getElementById(bouton.dataset.cible);
-    const champ = formulaire.querySelector('input[type="password"], input[type="text"][data-mdp]');
     const input = formulaire.querySelector('input[name="mot_de_passe"]');
     input.type = input.type === "password" ? "text" : "password";
   });
@@ -77,7 +82,7 @@ formulaireConnexion.addEventListener("submit", async (evenement) => {
     return;
   }
 
-  afficherApplication();
+  afficherApplication(true);
 });
 
 // --- Inscription -----------------------------------------------------------
@@ -103,7 +108,7 @@ formulaireInscription.addEventListener("submit", async (evenement) => {
 
   if (data.session) {
     // Confirmation email désactivée : le compte est actif immédiatement,
-    // afficherApplication() se déclenche automatiquement via onAuthStateChange.
+    // l'application s'affiche via onAuthStateChange.
     return;
   }
 
@@ -112,31 +117,56 @@ formulaireInscription.addEventListener("submit", async (evenement) => {
   messageConfirmationEmail.hidden = false;
 });
 
-// --- Déconnexion -----------------------------------------------------------
+// --- Déconnexion : on recharge la page pour repartir proprement ----------
 boutonDeconnexion.addEventListener("click", async () => {
   await supabase.auth.signOut();
-  afficherAuthentification();
+  history.replaceState(null, "", window.location.pathname);
+  window.location.reload();
 });
 
 // --- Affichage global --------------------------------------------------
-export function afficherApplication() {
+// "connexion" = vrai si l'utilisateur vient de saisir ses identifiants.
+// L'événement ceai:connecte n'est envoyé qu'UNE fois par chargement de page.
+export function afficherApplication(connexion = false) {
+  ecranDemarrage.hidden = true;
   ecranAuth.hidden = true;
   appShell.hidden = false;
-  document.dispatchEvent(new CustomEvent("ceai:connecte"));
+  if (applicationAffichee) return;
+  applicationAffichee = true;
+  document.dispatchEvent(new CustomEvent("ceai:connecte", { detail: { connexion } }));
 }
 
 export function afficherAuthentification() {
+  applicationAffichee = false;
+  ecranDemarrage.hidden = true;
   appShell.hidden = true;
   ecranAuth.hidden = false;
 }
 
 // --- Vérifie la session au chargement -----------------------------------
 export async function initialiserAuthentification() {
-  supabase.auth.onAuthStateChange((_evenement, session) => {
-    if (session) {
-      afficherApplication();
-    } else {
+  // Sécurité : si la lecture de la session traîne (réseau faible),
+  // on finit par proposer la connexion ; l'application reprendra
+  // automatiquement la main si la session est bien retrouvée ensuite.
+  const secours = setTimeout(() => {
+    if (!applicationAffichee) afficherAuthentification();
+  }, 8000);
+
+  try {
+    const { data } = await supabase.auth.getSession();
+    clearTimeout(secours);
+    if (data?.session) afficherApplication(false);
+    else afficherAuthentification();
+  } catch {
+    clearTimeout(secours);
+    afficherAuthentification();
+  }
+
+  supabase.auth.onAuthStateChange((evenement, session) => {
+    if (evenement === "SIGNED_OUT") {
       afficherAuthentification();
+      return;
     }
+    if (session) afficherApplication(false);
   });
-    }
+                                     }
