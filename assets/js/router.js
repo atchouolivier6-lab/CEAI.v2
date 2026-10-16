@@ -2,8 +2,10 @@
 // CEAI — Routeur (SPA sans framework)
 // Chaque route est associée à une fonction async qui reçoit
 // l'élément <main id="zone-contenu"> et y injecte son écran.
-// Les écrans détaillés (Cotisation, Tontine, etc.) seront
-// ajoutés ici au fur et à mesure, un fichier par domaine.
+//
+// Navigation : la route est écrite dans l'adresse (#route). Le
+// routeur écoute les changements d'adresse : le bouton retour du
+// téléphone (ou du navigateur) ramène donc à la page précédente.
 // =========================================================
 import { ecranMonProfil } from "./ecrans/membres-profil.js";
 import { ecranAnnuaire } from "./ecrans/membres-annuaire.js";
@@ -28,16 +30,6 @@ import { ecranAdminTableauBord, ecranAdminStatistiques } from "./ecrans/admin-st
 import { ecranAdminPublications } from "./ecrans/admin-publications.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
-
-function ecranProvisoire(titre) {
-  return async (conteneur) => {
-    conteneur.innerHTML = `
-      <h2 class="titre-section">${titre}</h2>
-      <hr class="trait-or" />
-      <p style="color:var(--texte-secondaire)">Cet écran sera construit à l'étape suivante.</p>
-    `;
-  };
-}
 
 // Table de routage : route -> fonction de rendu
 const routes = {
@@ -70,34 +62,66 @@ const routes = {
   "admin/statistiques": ecranAdminStatistiques,
 };
 
-export async function naviguerVers(route) {
+function routeDepuisUrl() {
+  return window.location.hash.replace(/^#\/?/, "") || "accueil";
+}
+
+// Affiche l'écran d'une route (ne touche pas à l'historique)
+async function afficher(route) {
   zoneContenu.innerHTML = '<p class="chargement">Chargement…</p>';
 
   // Liens d'invitation : invitation/cotisation/<id> ou invitation/tontine/<id>
-  if (route.startsWith("invitation/")) {
-    await ecranInvitation(zoneContenu, route.split("/").slice(1));
-  } else {
-    const rendu = routes[route] || routes["accueil"];
-    await rendu(zoneContenu);
+  const estInvitation = route.startsWith("invitation/");
+  if (!estInvitation && !routes[route]) {
+    route = "accueil";
+    history.replaceState(null, "", "#accueil");
+  }
+
+  try {
+    if (estInvitation) await ecranInvitation(zoneContenu, route.split("/").slice(1));
+    else await routes[route](zoneContenu);
+  } catch (erreur) {
+    console.error(erreur);
+    zoneContenu.innerHTML = '<p class="chargement">Cet écran n\'a pas pu s\'afficher. Réessayez.</p>';
   }
 
   document.querySelectorAll(".menu-item[data-route]").forEach((bouton) => {
     bouton.classList.toggle("actif", bouton.dataset.route === route);
   });
-
-  window.location.hash = route;
+  window.scrollTo(0, 0);
 }
+
+// Aller à une page : on change l'adresse, ce qui crée une entrée dans
+// l'historique ; l'écouteur "hashchange" affiche alors la page.
+export function naviguerVers(route) {
+  if (routeDepuisUrl() === route) return afficher(route); // même page : on la recharge
+  window.location.hash = route;
+  return Promise.resolve();
+}
+
+let routeurInitialise = false;
 
 export function initialiserRouteur() {
-  window.addEventListener("ceai:naviguer", (evenement) => naviguerVers(evenement.detail));
+  if (!routeurInitialise) {
+    routeurInitialise = true;
 
-  document.querySelectorAll(".menu-item[data-route]").forEach((bouton) => {
-    bouton.addEventListener("click", () => {
-      naviguerVers(bouton.dataset.route);
+    window.addEventListener("ceai:naviguer", (evenement) => naviguerVers(evenement.detail));
+
+    // Bouton retour / avance du téléphone, ou changement d'adresse
+    window.addEventListener("hashchange", () => {
       document.getElementById("menu-accordeon").hidden = true;
+      document.getElementById("panneau-notifications").hidden = true;
+      afficher(routeDepuisUrl());
     });
-  });
 
-  const routeInitiale = window.location.hash.replace("#", "") || "accueil";
-  naviguerVers(routeInitiale);
-}
+    document.querySelectorAll(".menu-item[data-route]").forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        naviguerVers(bouton.dataset.route);
+        document.getElementById("menu-accordeon").hidden = true;
+      });
+    });
+  }
+
+  if (!window.location.hash) history.replaceState(null, "", "#accueil");
+  afficher(routeDepuisUrl());
+  }
