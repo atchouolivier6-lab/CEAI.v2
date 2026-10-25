@@ -1,5 +1,5 @@
 // =========================================================
-// CEAI — Service worker (application installable)
+// CEAI — Service worker (application installable + notifications push)
 //
 // Stratégie "réseau d'abord" pour les fichiers du site : quand on est
 // en ligne, on charge TOUJOURS la dernière version publiée (jamais de
@@ -8,10 +8,13 @@
 // Les échanges avec la base de données (Supabase) ne sont jamais
 // interceptés : les données restent toujours en direct.
 //
+// Notifications push : le serveur envoie un message, le téléphone
+// réveille ce service worker, qui affiche la notification.
+//
 // Pour forcer le nettoyage des copies anciennes après une grosse mise à
 // jour, changez simplement le numéro de VERSION ci-dessous.
 // =========================================================
-const VERSION = "1";
+const VERSION = "2";
 const CACHE = `ceai-site-v${VERSION}`;
 
 const A_PRECHARGER = [
@@ -78,4 +81,45 @@ async function reseauPuisCopie(requete) {
     }
     return new Response("", { status: 504 });
   }
-                                      }
+}
+
+// --- Notifications push -----------------------------------------------------
+self.addEventListener("push", (evenement) => {
+  let donnees = {};
+  try {
+    donnees = evenement.data ? evenement.data.json() : {};
+  } catch {
+    donnees = { corps: evenement.data ? evenement.data.text() : "" };
+  }
+
+  evenement.waitUntil(
+    self.registration.showNotification(donnees.titre || "CEAI", {
+      body: donnees.corps || "",
+      icon: "assets/icons/icon-192.png",
+      tag: donnees.tag || undefined,
+      data: { url: donnees.url || "./" },
+    })
+  );
+});
+
+// Toucher la notification ouvre (ou ramène au premier plan) l'application
+self.addEventListener("notificationclick", (evenement) => {
+  evenement.notification.close();
+  const cible = new URL((evenement.notification.data && evenement.notification.data.url) || "./", self.registration.scope).href;
+
+  evenement.waitUntil(
+    (async () => {
+      const fenetres = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const fenetre of fenetres) {
+        if (fenetre.url.startsWith(self.registration.scope) && "focus" in fenetre) {
+          await fenetre.focus();
+          try {
+            await fenetre.navigate(cible);
+          } catch {}
+          return;
+        }
+      }
+      await self.clients.openWindow(cible);
+    })()
+  );
+});
