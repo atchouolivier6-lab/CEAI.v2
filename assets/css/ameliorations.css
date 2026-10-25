@@ -116,3 +116,33 @@
 
 .wa-erreur { margin: 0.6rem 0 0; color: #e57373; font-size: 0.88rem; }
 .wa-feuille .bouton-pleine-largeur { margin-top: 0.9rem; }
+
+/* ---- Notifications push ---- */
+.bloc-push {
+  margin-bottom: 0.6rem;
+  padding: 0.2rem 0 0.8rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+.bloc-push p { margin: 0 0 0.55rem; }
+.bloc-push .bouton { width: 100%; }
+.push-erreur { color: #e57373; }
+
+.push-rappel {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 4000;
+  max-width: 480px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: var(--fond-carte, #1b3328);
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+}
+.push-rappel p { margin: 0 0 0.65rem; font-size: 0.92rem; line-height: 1.4; }
+.push-rappel-actions { display: flex; align-items: center; gap: 1.2rem; }
