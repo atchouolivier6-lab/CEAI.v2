@@ -9,6 +9,7 @@ import { memoriserInvitationDepuisUrl, afficherBanniereInvitation, consommerInvi
 import { initialiserPartage } from "./partage.js";
 import { initialiserAgents } from "./agents-bouton.js";
 import { initialiserInstallation, afficherBandeauInstallation } from "./installation.js";
+import { initialiserPush } from "./notifications-push.js";
 
 const boutonMenu = document.getElementById("bouton-menu");
 const menuAccordeon = document.getElementById("menu-accordeon");
@@ -162,6 +163,7 @@ document.addEventListener("ceai:connecte", (evenement) => {
   initialiserRouteur();
   initialiserAgents(); // bouton flottant "Discuter avec un agent" (accueil uniquement)
   afficherBandeauInstallation(); // invitation à installer l'application
+  initialiserPush(); // notifications reçues même application fermée
 });
 
 // Un lien d'invitation est mémorisé dès l'arrivée, et annoncé sur l'écran de connexion
