@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Clés de notification CEAI</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; margin: 0; padding: 16px; background: #12251c; color: #f3efe2; }
+  h1 { font-size: 19px; margin: 0 0 8px; }
+  p { margin: 0 0 12px; }
+  button { font: inherit; padding: 12px 16px; border: 0; border-radius: 10px; background: #c9a227; color: #12251c; font-weight: 600; width: 100%; }
+  button.petit { width: auto; padding: 8px 14px; margin-top: 6px; }
+  label { display: block; margin: 16px 0 6px; font-weight: 600; color: #e8c766; }
+  textarea { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 10px; border: 1px solid #3c5a4a; background: #0b1812; color: #f3efe2; font: 13px ui-monospace, monospace; }
+  .alerte { padding: 10px 12px; border-radius: 10px; background: #3a1f1f; color: #ffb4a9; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<h1>Clés de notification CEAI</h1>
+<p>Cette page crée vos deux clés directement sur votre téléphone. Rien n'est envoyé nulle part.</p>
+<button id="generer">Générer mes clés</button>
+
+<div id="resultat" hidden>
+  <label for="publique">Clé PUBLIQUE (à m'envoyer)</label>
+  <textarea id="publique" rows="3" readonly></textarea>
+  <button class="petit" data-copie="publique">Copier</button>
+
+  <label for="privee">Clé PRIVÉE (à garder secrète)</label>
+  <textarea id="privee" rows="2" readonly></textarea>
+  <button class="petit" data-copie="privee">Copier</button>
+
+  <p class="alerte" style="margin-top:16px">
+    La clé privée va uniquement dans les secrets de Supabase. Ne la collez jamais dans GitHub ni dans une conversation.
+    Une fois les deux clés copiées, supprimez cette page de votre dépôt.
+  </p>
+</div>
+<p id="erreur" class="alerte" hidden></p>
+
+<script>
+function enBase64Url(octets) {
+  var texte = "";
+  for (var i = 0; i < octets.length; i++) texte += String.fromCharCode(octets[i]);
+  return btoa(texte).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+document.getElementById("generer").addEventListener("click", async function () {
+  var erreur = document.getElementById("erreur");
+  erreur.hidden = true;
+  try {
+    var paire = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+    var publique = new Uint8Array(await crypto.subtle.exportKey("raw", paire.publicKey));
+    var jwk = await crypto.subtle.exportKey("jwk", paire.privateKey);
+    document.getElementById("publique").value = enBase64Url(publique);
+    document.getElementById("privee").value = jwk.d;
+    document.getElementById("resultat").hidden = false;
+  } catch (e) {
+    erreur.textContent = "Impossible de générer les clés : " + e.message;
+    erreur.hidden = false;
+  }
+});
+
+document.querySelectorAll("[data-copie]").forEach(function (bouton) {
+  bouton.addEventListener("click", async function () {
+    var champ = document.getElementById(bouton.dataset.copie);
+    try { await navigator.clipboard.writeText(champ.value); bouton.textContent = "Copié"; }
+    catch (e) { champ.select(); bouton.textContent = "Sélectionné, copiez à la main"; }
+  });
+});
+</script>
+</body>
+</html>
