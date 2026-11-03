@@ -25,7 +25,14 @@ const CLE_DERNIERE_VISITE = "ceai-dernieres-notifs-vues";
 
 // Routes de l'espace Administration accessibles au comptable.
 // L'admin, lui, voit toujours tout le menu sans restriction.
-const ROUTES_ADMIN_POUR_COMPTABLE = ["admin/cotisations", "admin/tontine", "admin/epargne", "admin/prets"];
+const ROUTES_ADMIN_POUR_COMPTABLE = [
+  "admin/tableau-de-bord",
+  "admin/cotisations",
+  "admin/tontine",
+  "admin/epargne",
+  "admin/prets",
+  "admin/statistiques",
+];
 
 // --- Thème clair / sombre (mémorisé, s'applique uniquement à l'app) -----
 const ICONE_SOLEIL = '<circle cx="12" cy="12" r="4.2"/><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>';
@@ -120,9 +127,9 @@ function ecouterNotificationsEnDirect() {
 
 // --- Affiche le menu Administration selon le rôle --------------------------
 // Admin : voit tout, sans restriction.
-// Comptable : voit le menu Administration, mais limité à
-// Gestion des cotisations, Gestion de la tontine, Gestion de l'épargne
-// et Service de prêt.
+// Comptable : voit le menu Administration, mais limité au Tableau de bord,
+// à la Gestion des cotisations, de la tontine et de l'épargne,
+// au Service de prêt et aux Statistiques et rapports.
 // Tout autre rôle : menu Administration totalement masqué.
 async function afficherMenuSelonRole() {
   const { data: session } = await supabase.auth.getUser();
