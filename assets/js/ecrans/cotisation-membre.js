@@ -8,6 +8,7 @@
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
+import { penaliteRetardVersement, texteDateLimite, dateDuJour, formaterJour } from "../penalite-retard.js";
 import {
   carteOuverture,
   activerCartesOuverture,
@@ -45,7 +46,7 @@ async function recupererContexte() {
   const [{ data: sessionsOuvertes }, { data: mesAdhesions }] = await Promise.all([
     supabase
       .from("cotisation_sessions")
-      .select("id, nom, montant_indicatif, theme")
+      .select("id, nom, montant_indicatif, theme, date_limite_versement")
       .eq("statut", "ouverte")
       .order("ouverte_le", { ascending: false }),
     supabase.from("cotisation_adhesions").select("session_id").eq("membre_id", moiId).not("session_id", "is", null),
@@ -94,6 +95,7 @@ export async function ecranCotisationAdherer(conteneur) {
         badge: dejaAdhere ? "Adhéré" : "",
         details: [
           s.montant_indicatif ? `Montant indicatif : ${formaterMontant(s.montant_indicatif)}` : "Montant libre",
+          ...(s.date_limite_versement ? [texteDateLimite(s.date_limite_versement)] : []),
           dejaAdhere ? "Toucher pour faire un versement" : "Toucher pour adhérer",
         ],
         attributs: `data-session="${s.id}" role="button" tabindex="0"`,
@@ -145,7 +147,7 @@ export async function ecranCotisationSuivi(conteneur) {
 
   const { data: versements } = await supabase
     .from("cotisation_versements")
-    .select("id, montant, date_versement, statut, cotisation_sessions(nom, theme)")
+    .select("id, montant, penalite_retard, date_versement, statut, cotisation_sessions(nom, theme)")
     .eq("membre_id", moiId)
     .order("date_versement", { ascending: false });
 
@@ -161,7 +163,7 @@ export async function ecranCotisationSuivi(conteneur) {
       <div>
         <p style="margin:0; font-weight:500">${formaterMontant(v.montant)}</p>
         <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">
-          ${formaterDate(v.date_versement)} · ${echapper(v.cotisation_sessions?.nom || "—")}
+          ${formaterDate(v.date_versement)} · ${echapper(v.cotisation_sessions?.nom || "—")}${Number(v.penalite_retard) > 0 ? ` · dont pénalité de retard ${formaterMontant(v.penalite_retard)}` : ""}
         </p>
       </div>
       <div style="display:flex; align-items:center; gap:8px">
@@ -220,7 +222,10 @@ export async function ecranCotisationVerser(conteneur) {
       carteOuverture({
         nom: s.nom,
         theme: s.theme,
-        details: [s.montant_indicatif ? `Montant indicatif : ${formaterMontant(s.montant_indicatif)}` : "Montant libre"],
+        details: [
+          s.montant_indicatif ? `Montant indicatif : ${formaterMontant(s.montant_indicatif)}` : "Montant libre",
+          ...(s.date_limite_versement ? [texteDateLimite(s.date_limite_versement)] : []),
+        ],
         attributs: `data-choisir-session="${s.id}" role="button" tabindex="0"`,
         classes: `ouverture-cliquable ${s.id === sessionInitiale.id ? "selectionnee" : ""}`,
       })
@@ -240,13 +245,36 @@ export async function ecranCotisationVerser(conteneur) {
       </label>
       <label class="champ">
         <span>Date du versement</span>
-        <input type="date" name="date_versement" required value="${new Date().toISOString().slice(0, 10)}" />
+        <input type="date" name="date_versement" required value="${dateDuJour()}" />
       </label>
+      <p id="avis-retard" style="margin:0; font-size:13px; padding:10px 12px; border-radius:var(--rayon-petit); border:1px solid var(--danger); color:var(--danger)" hidden></p>
       <p id="erreur-versement" style="color:var(--danger); font-size:13px; margin:0" hidden></p>
       <p id="succes-versement" style="color:#4C9A6A; font-size:13px; margin:0" hidden>Versement déclaré, en attente de validation par un admin.</p>
       <button type="submit" class="bouton bouton-or">Déclarer le versement</button>
     </form>
   `;
+
+  const formulaire = document.getElementById("formulaire-versement");
+  const avisRetard = document.getElementById("avis-retard");
+
+  // Pénalité de 1 % si la date du versement dépasse la date limite de la session choisie
+  function calculerPenalite() {
+    const session = sessionsAdherees.find((s) => s.id === document.getElementById("champ-session-versement").value);
+    const montant = Number(formulaire.elements.montant.value || 0);
+    const penalite = penaliteRetardVersement({
+      dateLimite: session?.date_limite_versement,
+      dateVersement: formulaire.elements.date_versement.value,
+      montantReference: session?.montant_indicatif || montant,
+    });
+    if (penalite > 0) {
+      avisRetard.innerHTML = `La date limite (${formaterJour(session.date_limite_versement)}) est dépassée : une pénalité de retard de 1 % (${formaterMontant(penalite)}) s'ajoute. Total à verser : <strong>${formaterMontant(montant + penalite)}</strong>.`;
+    }
+    avisRetard.hidden = penalite === 0;
+    return penalite;
+  }
+  formulaire.elements.date_versement.addEventListener("input", calculerPenalite);
+  formulaire.elements.montant.addEventListener("input", calculerPenalite);
+  calculerPenalite();
 
   activerCartesOuverture(conteneur, "data-choisir-session", (sessionId, carte) => {
     conteneur.querySelectorAll("[data-choisir-session]").forEach((c) => c.classList.remove("selectionnee"));
@@ -254,6 +282,7 @@ export async function ecranCotisationVerser(conteneur) {
     document.getElementById("champ-session-versement").value = sessionId;
     const session = sessionsAdherees.find((s) => s.id === sessionId);
     document.getElementById("champ-montant-cotisation").value = session?.montant_indicatif || "";
+    calculerPenalite();
   });
 
   document.getElementById("formulaire-versement").addEventListener("submit", async (evenement) => {
@@ -264,10 +293,14 @@ export async function ecranCotisationVerser(conteneur) {
     erreur.hidden = true;
     succes.hidden = true;
 
+    const penalite = calculerPenalite();
+    const montantTotal = Number(donnees.get("montant")) + penalite;
+
     const { error } = await supabase.from("cotisation_versements").insert({
       session_id: donnees.get("session_id"),
       membre_id: moiId,
-      montant: Number(donnees.get("montant")),
+      montant: montantTotal,
+      ...(penalite > 0 ? { penalite_retard: penalite } : {}),
       date_versement: donnees.get("date_versement"),
     });
 
@@ -277,11 +310,16 @@ export async function ecranCotisationVerser(conteneur) {
       return;
     }
 
-    const montantDeclare = donnees.get("montant");
+    const montantDeclare = montantTotal;
     const sessionIdChoisie = donnees.get("session_id");
     evenement.target.reset();
     document.getElementById("champ-session-versement").value = sessionIdChoisie;
+    succes.textContent =
+      penalite > 0
+        ? `Versement déclaré (dont ${formaterMontant(penalite)} de pénalité de retard), en attente de validation par un admin.`
+        : "Versement déclaré, en attente de validation par un admin.";
     succes.hidden = false;
+    calculerPenalite();
     notifier(`Un versement de cotisation a été déclaré (${montantDeclare} FCFA).`);
   });
     }
