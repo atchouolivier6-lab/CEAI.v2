@@ -12,6 +12,7 @@
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
+import { penaliteRetardVersement } from "../penalite-retard.js";
 import {
   carteOuverture,
   selecteurTheme,
@@ -27,6 +28,13 @@ const ajoutsOuverts = new Set();
 
 function formaterDate(dateIso) {
   return dateIso ? new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "—";
+}
+
+// "2026-12-05" -> "5 déc. 2026" (sans décalage de fuseau horaire)
+function formaterJour(valeur) {
+  if (!valeur) return "—";
+  const [annee, mois, jour] = String(valeur).slice(0, 10).split("-").map(Number);
+  return new Date(annee, mois - 1, jour).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 }
 
 async function obtenirRole() {
@@ -49,10 +57,10 @@ async function rafraichir(conteneur) {
   const [{ data: sessions }, { data: versements }, { data: adhesions }, { data: membres }] = await Promise.all([
     supabase
       .from("cotisation_sessions")
-      .select("id, nom, statut, ouverte_le, cloturee_le, montant_indicatif, theme")
+      .select("id, nom, statut, ouverte_le, cloturee_le, montant_indicatif, theme, date_limite_versement")
       .eq("statut", "ouverte")
       .order("ouverte_le", { ascending: false }),
-    supabase.from("cotisation_versements").select("id, session_id, membre_id, montant, date_versement, statut"),
+    supabase.from("cotisation_versements").select("id, session_id, membre_id, montant, penalite_retard, date_versement, statut"),
     supabase.from("cotisation_adhesions").select("session_id, membre_id").not("session_id", "is", null),
     supabase.from("profils").select("id, nom").eq("actif", true),
   ]);
@@ -86,6 +94,10 @@ async function rafraichir(conteneur) {
             <span>Montant indicatif (FCFA, facultatif)</span>
             <input type="number" name="montant_indicatif" min="1" />
           </label>
+          <label class="champ">
+            <span>Date limite des versements (facultatif)</span>
+            <input type="date" name="date_limite_versement" />
+          </label>
           ${selecteurTheme()}
           <p id="erreur-ouverture" style="color:var(--danger); font-size:13px; margin:0" hidden></p>
           <button type="submit" class="bouton bouton-or">Ouvrir la session</button>
@@ -105,6 +117,7 @@ async function rafraichir(conteneur) {
           nom,
           ouverte_par: moiId,
           montant_indicatif: montantIndicatif ? Number(montantIndicatif) : null,
+          date_limite_versement: donnees.get("date_limite_versement") || null,
           theme: lireTheme(formulaire),
         });
         if (error) {
@@ -142,6 +155,7 @@ async function rafraichir(conteneur) {
           details: [
             `Ouverte le ${formaterDate(s.ouverte_le)}${s.montant_indicatif ? " · Indicatif : " + Number(s.montant_indicatif).toLocaleString("fr-FR") + " FCFA" : ""}`,
             `${totalValide.toLocaleString("fr-FR")} FCFA validés · ${adherentsSession.length} adhérent(s) · ${enAttente.length} versement(s) en attente`,
+            ...(s.date_limite_versement ? [`Clôture des versements prévue le ${formaterJour(s.date_limite_versement)} (pénalité de 1 % après cette date)`] : []),
           ],
           attributs: `data-basculer-corps="${s.id}" role="button" tabindex="0"`,
           classes: "ouverture-cliquable",
@@ -205,7 +219,7 @@ async function rafraichir(conteneur) {
           <div data-liste-versements="${s.id}" hidden style="margin-top:12px; display:flex; flex-direction:column; gap:8px">
             ${
               enAttente.length
-                ? enAttente.map((v) => gabaritVersementEnAttente(v, nomParId)).join("")
+                ? enAttente.map((v) => gabaritVersementEnAttente(v, nomParId, penaliteRetardVersement({ dateLimite: s.date_limite_versement, dateVersement: v.date_versement, montantReference: s.montant_indicatif || v.montant }))).join("")
                 : `<p style="color:var(--texte-secondaire); font-size:13px">Aucun versement en attente.</p>`
             }
           </div>
@@ -440,12 +454,12 @@ function gabaritFormulaireBilan(sessionId, nomSession, bilan) {
       <p style="margin:0; font-size:12px; color:var(--texte-secondaire)">
         Ce bilan sera visible par tous les membres dans les Archives une fois la session clôturée. Laissez à 0 ce qui ne s'applique pas.
       </p>
-
+ 
       <div>
         <p style="margin:0 0 6px; font-size:13px; font-weight:500">Dépenses effectuées</p>
         <input type="number" name="depenses_montant" min="0" step="1" placeholder="Montant (FCFA)" value="${bilan?.depenses_montant || 0}"
                style="width:100%; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
-        <textarea name="depenses_description" rows="2" placeholder="Détail des dépenses (facultatif)"
+               <textarea name="depenses_description" rows="2" placeholder="Détail des dépenses (facultatif)"
                   style="width:100%; margin-top:6px; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical">${echapper(bilan?.depenses_description || "")}</textarea>
       </div>
  
@@ -453,7 +467,7 @@ function gabaritFormulaireBilan(sessionId, nomSession, bilan) {
         <p style="margin:0 0 6px; font-size:13px; font-weight:500">Remboursements de prêts effectués avec cette cotisation</p>
         <input type="number" name="remboursements_montant" min="0" step="1" placeholder="Montant (FCFA)" value="${bilan?.remboursements_montant || 0}"
                style="width:100%; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
-                       <textarea name="remboursements_description" rows="2" placeholder="Détail (facultatif)"
+               <textarea name="remboursements_description" rows="2" placeholder="Détail (facultatif)"
                   style="width:100%; margin-top:6px; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical">${echapper(bilan?.remboursements_description || "")}</textarea>
       </div>
  
@@ -475,7 +489,7 @@ function gabaritFormulaireBilan(sessionId, nomSession, bilan) {
   `;
 }
  
-function gabaritVersementEnAttente(v, nomParId) {
+function gabaritVersementEnAttente(v, nomParId, penalite = 0) {
   return `
     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--bordure)">
       <div>
@@ -483,6 +497,7 @@ function gabaritVersementEnAttente(v, nomParId) {
         <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">
           ${Number(v.montant).toLocaleString("fr-FR")} FCFA · ${new Date(v.date_versement).toLocaleDateString("fr-FR")}
                   </p>
+                  ${Number(v.penalite_retard) > 0 ? `<p style="margin:2px 0 0; font-size:12px; color:var(--danger)">Dont pénalité de retard : ${Number(v.penalite_retard).toLocaleString("fr-FR")} FCFA</p>` : penalite > 0 ? `<p style="margin:2px 0 0; font-size:12px; color:var(--danger)">En retard : pénalité de 1 % à ajouter (${penalite.toLocaleString("fr-FR")} FCFA)</p>` : ""}
       </div>
       <div style="display:flex; gap:6px">
         <button data-valider="${v.id}" class="bouton" style="background:#4C9A6A; color:#fff; padding:6px 10px; font-size:12px">Valider</button>
@@ -491,7 +506,7 @@ function gabaritVersementEnAttente(v, nomParId) {
     </div>
   `;
 }
- 
+
 // Liste des membres du site qui ne sont pas encore dans la session
 function gabaritAjoutAdherent(sessionId, adherentsSession, membres) {
   const dejaAdherents = new Set(adherentsSession.map((a) => a.membre_id));
@@ -507,7 +522,7 @@ function gabaritAjoutAdherent(sessionId, adherentsSession, membres) {
       .map(
         (m) => `
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:6px 0; border-top:1px solid var(--bordure)">
-        <span style="font-size:13px">${echapper(m.nom)}</span>
+      <span style="font-size:13px">${echapper(m.nom)}</span>
         <button data-ajouter-adherent="${sessionId}" data-membre="${m.id}" data-nom="${echapper(m.nom)}" class="bouton"
                         style="background:var(--fond-carte-claire); color:var(--texte); padding:5px 10px; font-size:12px">Ajouter</button>
       </div>`
@@ -515,3 +530,4 @@ function gabaritAjoutAdherent(sessionId, adherentsSession, membres) {
       .join("")}
   `;
 }
+ 
