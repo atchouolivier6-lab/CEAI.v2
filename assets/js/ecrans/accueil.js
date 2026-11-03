@@ -3,6 +3,10 @@
 // Cartes de statistiques colorées, prochain bénéficiaire de la
 // tontine, activités récentes animées et dernières publications.
 // Chaque carte renvoie vers l'écran correspondant.
+//
+// Confidentialité : la carte "Capital cotisation" n'est visible que des
+// adhérents d'une cotisation, et le bloc "Prochain bénéficiaire" que des
+// participants d'une tontine. L'admin et le comptable voient toujours tout.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
@@ -36,6 +40,26 @@ async function chargerMonEpargne(moiId) {
 
   const total = (versements || []).reduce((somme, v) => somme + Number(v.montant), 0);
   return { total, nombre: ids.length };
+}
+
+// Mon rôle (admin, comptable, membre...)
+async function chargerRole(moiId) {
+  const { data } = await supabase.from("profils").select("role").eq("id", moiId).maybeSingle();
+  return data?.role || "";
+}
+
+// Suis-je inscrit (au moins une ligne à mon nom) dans cette table ?
+// Renvoie true / false, ou null si la vérification est impossible
+// (dans ce cas on laisse l'affichage habituel plutôt que de cacher à tort).
+async function suisInscritDans(table, moiId) {
+  for (const colonne of ["membre_id", "profil_id"]) {
+    const { count, error } = await supabase
+      .from(table)
+      .select("*", { count: "exact", head: true })
+      .eq(colonne, moiId);
+    if (!error) return (count || 0) > 0;
+  }
+  return null;
 }
 
 // Rappel pour les admins et comptables qui n'ont pas encore renseigné leur numéro WhatsApp
@@ -75,6 +99,9 @@ export async function ecranAccueil(conteneur) {
     { data: notifications },
     epargne,
     rappel,
+    role,
+    adherentCotisation,
+    participantTontine,
   ] = await Promise.all([
     supabase.from("capital_cotisation").select("total").maybeSingle(),
     chargerProchainsBeneficiaires(),
@@ -83,7 +110,16 @@ export async function ecranAccueil(conteneur) {
     supabase.from("notifications").select("texte, cree_le").order("cree_le", { ascending: false }).limit(6),
     chargerMonEpargne(moiId),
     rappelWhatsapp(moiId),
+    chargerRole(moiId),
+    suisInscritDans("cotisation_adhesions", moiId),
+    suisInscritDans("tontine_participants", moiId),
   ]);
+
+  // L'admin et le comptable voient tout ; un membre ne voit le capital que s'il a adhéré
+  // à une cotisation, et le prochain bénéficiaire que s'il participe à une tontine.
+  const gereArgent = ["admin", "comptable"].includes(role);
+  const voirCapital = gereArgent || adherentCotisation !== false;
+  const voirBeneficiaire = gereArgent || participantTontine !== false;
 
   const cycles = tontine.cycles;
   const noteTontine = !cycles.length
@@ -96,39 +132,47 @@ export async function ecranAccueil(conteneur) {
     ? "Aucun compte ouvert"
     : `${epargne.nombre} compte${epargne.nombre > 1 ? "s" : ""} d'épargne`;
 
+  const carteMembres = carteStat({
+    libelle: "Membres actifs",
+    valeur: String(membresActifs || 0),
+    note: "Dans l'association",
+    icone: "membres",
+    couleur: "bleu",
+    aller: "membres/annuaire",
+  });
+
+  const carteCapital = carteStat({
+    libelle: "Capital cotisation",
+    valeur: formaterMontant(capital?.total),
+    note: "Fonds commun",
+    icone: "cotisation",
+    couleur: "vert",
+    aller: "cotisation/suivi",
+  });
+
+  const carteEpargne = carteStat({
+    libelle: "Mon épargne",
+    valeur: formaterMontant(epargne.total),
+    note: noteEpargne,
+    icone: "epargne",
+    couleur: "or",
+    aller: "epargne/comptes",
+  });
+
+  const carteTontine = carteStat({
+    libelle: "Tontine",
+    valeur: cycles.length ? `${cycles.length} en cours` : "Aucun cycle",
+    note: noteTontine,
+    icone: "tontine",
+    couleur: "violet",
+    aller: "tontine/suivi",
+  });
+
   const cartes = grilleStats([
-    carteStat({
-      libelle: "Membres actifs",
-      valeur: String(membresActifs || 0),
-      note: "Dans l'association",
-      icone: "membres",
-      couleur: "bleu",
-      aller: "membres/annuaire",
-    }),
-    carteStat({
-      libelle: "Capital cotisation",
-      valeur: formaterMontant(capital?.total),
-      note: "Fonds commun",
-      icone: "cotisation",
-      couleur: "vert",
-      aller: "cotisation/suivi",
-    }),
-    carteStat({
-      libelle: "Mon épargne",
-      valeur: formaterMontant(epargne.total),
-      note: noteEpargne,
-      icone: "epargne",
-      couleur: "or",
-      aller: "epargne/comptes",
-    }),
-    carteStat({
-      libelle: "Tontine",
-      valeur: cycles.length ? `${cycles.length} en cours` : "Aucun cycle",
-      note: noteTontine,
-      icone: "tontine",
-      couleur: "violet",
-      aller: "tontine/suivi",
-    }),
+    carteMembres,
+    ...(voirCapital ? [carteCapital] : []),
+    carteEpargne,
+    carteTontine,
   ]);
 
   conteneur.innerHTML = `
@@ -136,7 +180,7 @@ export async function ecranAccueil(conteneur) {
     ${rappel}
     ${cartes}
     <div class="grille-panneaux">
-      ${panneauBeneficiaire(tontine)}
+      ${voirBeneficiaire ? panneauBeneficiaire(tontine) : ""}
       ${panneauNotifications(notifications || [])}
       ${panneauPublications(dernieresPublications || [])}
     </div>
@@ -158,4 +202,4 @@ export async function ecranAccueil(conteneur) {
   });
 
   activerCartesCliquables(conteneur);
-                                                                              }
+    }
