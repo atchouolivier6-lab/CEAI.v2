@@ -3,11 +3,15 @@
 // Accès : admin ET comptable peuvent traiter les demandes
 // (accepter/refuser). Seul l'admin peut supprimer
 // définitivement une demande refusée des archives.
+//
+// À l'acceptation, la date du prêt déclarée par le membre est reprise
+// comme date d'octroi (modifiable avant d'accepter) : c'est de cette
+// date que part le décompte des pénalités, calculé jour par jour.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
-import { calculerPenalite } from "../prets-utils.js";
+import { calculerPenaliteJournaliere, dateDuJour, formaterJour } from "../prets-penalite.js";
 
 function formaterDate(dateIso) {
   return new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -61,7 +65,7 @@ export async function ecranAdminPrets(conteneur) {
 
     const { data: demandes, error } = await supabase
       .from("prets_demandes")
-      .select("id, montant, motif, duree_souhaitee, statut, reponse_admin, cree_le, profils!prets_demandes_membre_id_fkey(nom)")
+      .select("id, montant, motif, duree_souhaitee, statut, reponse_admin, cree_le, date_pret, profils!prets_demandes_membre_id_fkey(nom)")
       .order("cree_le", { ascending: false });
 
     if (error) {
@@ -81,6 +85,13 @@ export async function ecranAdminPrets(conteneur) {
         const [demandeId, statut] = bouton.dataset.traiter.split("|");
         const carte = bouton.closest(".carte");
         const reponse = carte.querySelector(".reponse-admin-champ").value.trim();
+        const dateOctroi = carte.querySelector(".date-octroi-champ")?.value || dateDuJour();
+
+        if (statut === "acceptee" && dateOctroi > dateDuJour()) {
+          alert("La date du prêt ne peut pas être dans le futur.");
+          return;
+        }
+
         const moiId = await idProfilCourant();
 
         await supabase
@@ -90,7 +101,7 @@ export async function ecranAdminPrets(conteneur) {
             reponse_admin: reponse || null,
             traite_par: moiId,
             traite_le: new Date().toISOString(),
-            date_octroi: statut === "acceptee" ? new Date().toISOString().slice(0, 10) : null,
+            date_octroi: statut === "acceptee" ? dateOctroi : null,
           })
           .eq("id", demandeId);
 
@@ -109,6 +120,7 @@ export async function ecranAdminPrets(conteneur) {
   }
 
   function gabaritDemande(d, estAdmin) {
+    const aujourdhui = dateDuJour();
     return `
       <div class="carte">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px">
@@ -122,12 +134,19 @@ export async function ecranAdminPrets(conteneur) {
           </div>
         </div>
         <p style="margin:10px 0 0; font-family:var(--police-titre); font-size:20px">${Number(d.montant).toLocaleString("fr-FR")} FCFA</p>
+        ${d.date_pret ? `<p style="margin:6px 0 0; font-size:13px; color:var(--texte-secondaire)">Date du prêt déclarée : ${formaterJour(d.date_pret)}</p>` : ""}
         ${d.motif ? `<p style="margin:6px 0 0; font-size:13px; color:var(--texte-secondaire)">Motif : ${d.motif}</p>` : ""}
         ${d.duree_souhaitee ? `<p style="margin:4px 0 0; font-size:13px; color:var(--texte-secondaire)">Durée souhaitée : ${d.duree_souhaitee}</p>` : ""}
 
         ${
           d.statut === "en_attente"
-            ? `<textarea class="reponse-admin-champ" rows="2" placeholder="Réponse (facultative)..."
+            ? `<label style="display:block; margin-top:10px; font-size:12px; color:var(--texte-secondaire)">
+                 Date du prêt (début du décompte des pénalités) — à corriger si besoin
+                 <input type="date" class="date-octroi-champ" value="${d.date_pret || aujourdhui}" max="${aujourdhui}"
+                        style="display:block; margin-top:4px; background:var(--fond); border:1px solid var(--bordure);
+                        border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
+               </label>
+               <textarea class="reponse-admin-champ" rows="2" placeholder="Réponse (facultative)..."
                  style="width:100%; margin-top:10px; background:var(--fond); border:1px solid var(--bordure);
                  border-radius:var(--rayon-petit); padding:10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical"></textarea>
                <div style="display:flex; gap:8px; margin-top:8px">
@@ -172,15 +191,16 @@ export async function ecranAdminPrets(conteneur) {
         const rembDuPret = (remboursements || []).filter((r) => r.demande_id === pret.id);
         const rembValide = rembDuPret.filter((r) => r.statut === "valide").reduce((s, r) => s + Number(r.montant), 0);
         const rembEnAttente = rembDuPret.filter((r) => r.statut === "en_attente");
-        const { moisEnRetard, penalite } = calculerPenalite(pret.montant, pret.date_octroi);
+        const { joursEnRetard, penalite, finGrace } = calculerPenaliteJournaliere(pret.montant, pret.date_octroi);
         const resteDu = Number(pret.montant) + penalite - rembValide;
+        const libelleJours = `${joursEnRetard} jour${joursEnRetard > 1 ? "s" : ""} de retard`;
 
         return `
         <div class="carte">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px">
             <div>
               <p style="margin:0; font-weight:500">${pret.profils?.nom || "—"}</p>
-              <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">Octroyé le ${formaterDate(pret.date_octroi)}</p>
+              <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">Octroyé le ${formaterJour(pret.date_octroi)}</p>
             </div>
             <button data-marquer-solde="${pret.id}" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:6px 10px; font-size:12px">
               Marquer soldé
@@ -188,10 +208,15 @@ export async function ecranAdminPrets(conteneur) {
           </div>
           <div style="display:flex; gap:16px; margin-top:10px; flex-wrap:wrap">
             <div><p style="margin:0; font-size:11px; color:var(--texte-secondaire)">EMPRUNTÉ</p><p style="margin:2px 0 0">${Number(pret.montant).toLocaleString("fr-FR")} FCFA</p></div>
-            <div><p style="margin:0; font-size:11px; color:var(--texte-secondaire)">PÉNALITÉ (${moisEnRetard} mois de retard)</p><p style="margin:2px 0 0; color:${penalite > 0 ? "var(--danger)" : "var(--texte)"}">${penalite.toLocaleString("fr-FR")} FCFA</p></div>
+            <div><p style="margin:0; font-size:11px; color:var(--texte-secondaire)">PÉNALITÉ (${libelleJours})</p><p style="margin:2px 0 0; color:${penalite > 0 ? "var(--danger)" : "var(--texte)"}">${penalite.toLocaleString("fr-FR")} FCFA</p></div>
             <div><p style="margin:0; font-size:11px; color:var(--texte-secondaire)">REMBOURSÉ</p><p style="margin:2px 0 0; color:#4C9A6A">${rembValide.toLocaleString("fr-FR")} FCFA</p></div>
             <div><p style="margin:0; font-size:11px; color:var(--texte-secondaire)">RESTE DÛ</p><p style="margin:2px 0 0; font-weight:600">${resteDu.toLocaleString("fr-FR")} FCFA</p></div>
           </div>
+          ${
+            penalite === 0 && finGrace
+              ? `<p style="margin:8px 0 0; font-size:12px; color:var(--texte-secondaire)">Sans pénalité jusqu'au ${finGrace.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}.</p>`
+              : ""
+          }
 
           ${
             rembEnAttente.length
@@ -300,4 +325,4 @@ export async function ecranAdminPrets(conteneur) {
   }
 
   rendreDemandes();
-}
+      }
