@@ -1,10 +1,12 @@
 // =========================================================
 // CEAI — Écran "Demande de prêt" (visible par tous les membres)
+// Le membre indique la date du prêt (aujourd'hui ou une date passée) ;
+// la pénalité de retard se calcule jour par jour à partir de cette date.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
-import { calculerPenalite } from "../prets-utils.js";
+import { calculerPenaliteJournaliere, dateDuJour, formaterJour } from "../prets-penalite.js";
 
 function formaterDate(dateIso) {
   return new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
@@ -48,12 +50,21 @@ export async function ecranDemandePret(conteneur) {
   });
 
   function rendreFormulaire() {
+    const aujourdhui = dateDuJour();
     zoneOnglet.innerHTML = `
       <form id="formulaire-pret" class="carte" style="display:flex; flex-direction:column; gap:16px">
         <label class="champ">
           <span>Montant souhaité (FCFA) — minimum 5 000</span>
           <input type="number" name="montant" min="5000" step="1" required />
         </label>
+        <label class="champ">
+          <span>Date du prêt (aujourd'hui ou une date déjà passée)</span>
+          <input type="date" name="date_pret" value="${aujourdhui}" max="${aujourdhui}" required />
+        </label>
+        <p style="margin:-8px 0 0; font-size:12px; color:var(--texte-secondaire)">
+          Si vous avez déjà reçu ce prêt avant de le déclarer ici, indiquez la vraie date : le décompte des
+          pénalités part de cette date. Le premier mois est sans pénalité.
+        </p>
         <label class="champ">
           <span>Motif (facultatif)</span>
           <textarea name="motif" rows="3" style="background:var(--fond); border:1px solid var(--bordure);
@@ -75,10 +86,18 @@ export async function ecranDemandePret(conteneur) {
       const erreur = document.getElementById("erreur-pret");
       erreur.hidden = true;
 
+      const datePret = donnees.get("date_pret") || dateDuJour();
+      if (datePret > dateDuJour()) {
+        erreur.textContent = "La date du prêt ne peut pas être dans le futur.";
+        erreur.hidden = false;
+        return;
+      }
+
       const moiId = await idProfilCourant();
       const { error } = await supabase.from("prets_demandes").insert({
         membre_id: moiId,
         montant: Number(donnees.get("montant")),
+        date_pret: datePret,
         motif: donnees.get("motif")?.trim() || null,
         duree_souhaitee: donnees.get("duree_souhaitee")?.trim() || null,
       });
@@ -101,7 +120,7 @@ export async function ecranDemandePret(conteneur) {
 
     const { data: demandes } = await supabase
       .from("prets_demandes")
-      .select("id, montant, motif, duree_souhaitee, statut, reponse_admin, cree_le, date_octroi, solde")
+      .select("id, montant, motif, duree_souhaitee, statut, reponse_admin, cree_le, date_pret, date_octroi, solde")
       .eq("membre_id", moiId)
       .order("cree_le", { ascending: false });
 
@@ -162,8 +181,12 @@ export async function ecranDemandePret(conteneur) {
     const peutSupprimer = d.statut === "en_attente" || d.statut === "refusee";
     const mesRemb = tousLesRemboursements.filter((r) => r.demande_id === d.id);
     const rembValide = mesRemb.filter((r) => r.statut === "valide").reduce((s, r) => s + Number(r.montant), 0);
-    const { moisEnRetard, penalite } = estActif ? calculerPenalite(d.montant, d.date_octroi) : { moisEnRetard: 0, penalite: 0 };
+    const calcul = estActif
+      ? calculerPenaliteJournaliere(d.montant, d.date_octroi)
+      : { joursEnRetard: 0, penalite: 0, finGrace: null };
+    const { joursEnRetard, penalite, finGrace } = calcul;
     const resteDu = Number(d.montant) + penalite - rembValide;
+    const libelleJours = `${joursEnRetard} jour${joursEnRetard > 1 ? "s" : ""} de retard`;
 
     return `
       <div class="carte">
@@ -177,7 +200,8 @@ export async function ecranDemandePret(conteneur) {
             ${peutSupprimer ? `<button data-supprimer-demande="${d.id}" class="bouton-icone" aria-label="Supprimer" style="color:var(--danger)">✕</button>` : ""}
           </div>
         </div>
-        ${d.motif ? `<p style="margin:10px 0 0; font-size:13px; color:var(--texte-secondaire)">Motif : ${d.motif}</p>` : ""}
+        ${d.date_pret ? `<p style="margin:10px 0 0; font-size:13px; color:var(--texte-secondaire)">Date du prêt : ${formaterJour(d.date_pret)}</p>` : ""}
+        ${d.motif ? `<p style="margin:4px 0 0; font-size:13px; color:var(--texte-secondaire)">Motif : ${d.motif}</p>` : ""}
         ${d.duree_souhaitee ? `<p style="margin:4px 0 0; font-size:13px; color:var(--texte-secondaire)">Durée souhaitée : ${d.duree_souhaitee}</p>` : ""}
         ${d.reponse_admin ? `<p style="margin:10px 0 0; font-size:13px; padding-top:10px; border-top:1px solid var(--bordure)">Réponse : ${d.reponse_admin}</p>` : ""}
 
@@ -185,15 +209,20 @@ export async function ecranDemandePret(conteneur) {
           estActif
             ? `
           <div style="display:flex; gap:14px; margin-top:12px; flex-wrap:wrap; padding-top:10px; border-top:1px solid var(--bordure)">
-            ${penalite > 0 ? `<div><p style="margin:0; font-size:11px; color:var(--texte-secondaire)">PÉNALITÉ (${moisEnRetard} mois)</p><p style="margin:2px 0 0; color:var(--danger)">${penalite.toLocaleString("fr-FR")} FCFA</p></div>` : ""}
+            ${penalite > 0 ? `<div><p style="margin:0; font-size:11px; color:var(--texte-secondaire)">PÉNALITÉ (${libelleJours})</p><p style="margin:2px 0 0; color:var(--danger)">${penalite.toLocaleString("fr-FR")} FCFA</p></div>` : ""}
             <div><p style="margin:0; font-size:11px; color:var(--texte-secondaire)">REMBOURSÉ</p><p style="margin:2px 0 0; color:#4C9A6A">${rembValide.toLocaleString("fr-FR")} FCFA</p></div>
             <div><p style="margin:0; font-size:11px; color:var(--texte-secondaire)">RESTE DÛ</p><p style="margin:2px 0 0; font-weight:600">${resteDu.toLocaleString("fr-FR")} FCFA</p></div>
           </div>
+          ${
+            penalite === 0 && finGrace
+              ? `<p style="margin:8px 0 0; font-size:12px; color:var(--texte-secondaire)">Sans pénalité jusqu'au ${finGrace.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}.</p>`
+              : ""
+          }
 
           <form data-formulaire-remb="${d.id}" style="display:flex; gap:8px; margin-top:12px">
             <input type="number" name="montant" min="1" placeholder="Montant" required
                    style="flex:1; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
-            <input type="date" name="date_remboursement" required value="${new Date().toISOString().slice(0, 10)}"
+            <input type="date" name="date_remboursement" required value="${dateDuJour()}"
                    style="background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
             <button type="submit" class="bouton bouton-or" style="padding:8px 14px; font-size:13px">Déclarer</button>
           </form>
@@ -223,4 +252,4 @@ export async function ecranDemandePret(conteneur) {
   }
 
   rendreFormulaire();
-}
+    }
