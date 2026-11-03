@@ -9,6 +9,7 @@
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
+import { penaliteRetardVersement, texteDateLimite, dateDuJour, formaterJour } from "../penalite-retard.js";
 import {
   carteOuverture,
   activerCartesOuverture,
@@ -50,7 +51,7 @@ async function recupererContexte() {
   const [{ data: cyclesOuverts }, { data: mesParticipations }] = await Promise.all([
     supabase
       .from("tontine_cycles")
-      .select("id, nom, montant_mensuel, theme, tirage_effectue_le")
+      .select("id, nom, montant_mensuel, theme, tirage_effectue_le, date_limite_versement")
       .eq("statut", "ouvert")
       .order("demarre_le", { ascending: false }),
     supabase.from("tontine_participants").select("id, cycle_id, ordre_tour, a_recu").eq("membre_id", moiId),
@@ -100,6 +101,7 @@ export async function ecranTontineRejoindre(conteneur) {
         details: [
           `Versement mensuel : ${formaterMontant(c.montant_mensuel)}`,
           texteTirage(c),
+          ...(c.date_limite_versement ? [texteDateLimite(c.date_limite_versement)] : []),
           participe ? "Toucher pour suivre le cycle" : "Toucher pour rejoindre",
         ],
         attributs: `data-cycle="${c.id}" role="button" tabindex="0"`,
@@ -176,7 +178,7 @@ export async function ecranTontineSuivi(conteneur) {
       const maParticipation = mesParticipations.find((p) => p.cycle_id === cycle.id);
       const { data: mesVersements } = await supabase
         .from("tontine_versements")
-        .select("id, montant, date_versement, statut")
+        .select("id, montant, penalite_retard, date_versement, statut")
         .eq("participant_id", maParticipation.id)
         .order("date_versement", { ascending: false });
 
@@ -209,7 +211,7 @@ export async function ecranTontineSuivi(conteneur) {
         <div class="carte" style="display:flex; justify-content:space-between; align-items:center">
           <div>
             <p style="margin:0; font-weight:500">${formaterMontant(v.montant)}</p>
-            <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">${formaterDate(v.date_versement)}</p>
+            <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">${formaterDate(v.date_versement)}${Number(v.penalite_retard) > 0 ? ` · dont pénalité de retard ${formaterMontant(v.penalite_retard)}` : ""}</p>
           </div>
           <div style="display:flex; align-items:center; gap:8px">
             ${badgeStatut(v.statut)}
@@ -225,7 +227,11 @@ export async function ecranTontineSuivi(conteneur) {
           nom: cycle.nom,
           theme: cycle.theme,
           badge: tirageFait ? "Tirage effectué" : "Tirage à venir",
-          details: [`Versement mensuel : ${formaterMontant(cycle.montant_mensuel)}`, texteTirage(cycle)],
+          details: [
+            `Versement mensuel : ${formaterMontant(cycle.montant_mensuel)}`,
+            texteTirage(cycle),
+            ...(cycle.date_limite_versement ? [texteDateLimite(cycle.date_limite_versement)] : []),
+          ],
         })}
         <div style="height:10px"></div>
         ${lignes}
@@ -276,7 +282,10 @@ export async function ecranTontineVerser(conteneur) {
       carteOuverture({
         nom: x.cycle.nom,
         theme: x.cycle.theme,
-        details: [`Versement mensuel : ${formaterMontant(x.cycle.montant_mensuel)}`],
+        details: [
+          `Versement mensuel : ${formaterMontant(x.cycle.montant_mensuel)}`,
+          ...(x.cycle.date_limite_versement ? [texteDateLimite(x.cycle.date_limite_versement)] : []),
+        ],
         attributs: `data-choisir-cycle="${x.participation.id}" role="button" tabindex="0"`,
         classes: `ouverture-cliquable ${x.participation.id === initial.participation.id ? "selectionnee" : ""}`,
       })
@@ -296,13 +305,38 @@ export async function ecranTontineVerser(conteneur) {
       </label>
       <label class="champ">
         <span>Date du versement</span>
-        <input type="date" name="date_versement" required value="${new Date().toISOString().slice(0, 10)}" />
+        <input type="date" name="date_versement" required value="${dateDuJour()}" />
       </label>
+      <p id="avis-retard-tontine" style="margin:0; font-size:13px; padding:10px 12px; border-radius:var(--rayon-petit); border:1px solid var(--danger); color:var(--danger)" hidden></p>
       <p id="erreur-versement-tontine" style="color:var(--danger); font-size:13px; margin:0" hidden></p>
       <p id="succes-versement-tontine" style="color:#4C9A6A; font-size:13px; margin:0" hidden>Versement déclaré, en attente de validation par un admin.</p>
       <button type="submit" class="bouton bouton-or">Déclarer le versement</button>
     </form>
   `;
+
+  const formulaire = document.getElementById("formulaire-versement-tontine");
+  const avisRetard = document.getElementById("avis-retard-tontine");
+
+  // Pénalité de 1 % du montant mensuel si la date du versement dépasse la date limite du cycle choisi
+  function calculerPenalite() {
+    const choisi = cyclesAvecParticipation.find(
+      (x) => x.participation.id === document.getElementById("champ-participant-tontine").value
+    );
+    const montant = Number(formulaire.elements.montant.value || 0);
+    const penalite = penaliteRetardVersement({
+      dateLimite: choisi?.cycle.date_limite_versement,
+      dateVersement: formulaire.elements.date_versement.value,
+      montantReference: choisi?.cycle.montant_mensuel,
+    });
+    if (penalite > 0) {
+      avisRetard.innerHTML = `La date limite (${formaterJour(choisi.cycle.date_limite_versement)}) est dépassée : une pénalité de retard de 1 % (${formaterMontant(penalite)}) s'ajoute. Total à verser : <strong>${formaterMontant(montant + penalite)}</strong>.`;
+    }
+    avisRetard.hidden = penalite === 0;
+    return penalite;
+  }
+  formulaire.elements.date_versement.addEventListener("input", calculerPenalite);
+  formulaire.elements.montant.addEventListener("input", calculerPenalite);
+  calculerPenalite();
 
   activerCartesOuverture(conteneur, "data-choisir-cycle", (participantId, carte) => {
     conteneur.querySelectorAll("[data-choisir-cycle]").forEach((c) => c.classList.remove("selectionnee"));
@@ -310,6 +344,7 @@ export async function ecranTontineVerser(conteneur) {
     document.getElementById("champ-participant-tontine").value = participantId;
     const choisi = cyclesAvecParticipation.find((x) => x.participation.id === participantId);
     document.getElementById("champ-montant-tontine").value = choisi?.cycle.montant_mensuel ?? "";
+    calculerPenalite();
   });
 
   document.getElementById("formulaire-versement-tontine").addEventListener("submit", async (evenement) => {
@@ -322,10 +357,14 @@ export async function ecranTontineVerser(conteneur) {
     erreur.hidden = true;
     succes.hidden = true;
 
+    const penalite = calculerPenalite();
+    const montantTotal = Number(donnees.get("montant")) + penalite;
+
     const { error } = await supabase.from("tontine_versements").insert({
       cycle_id: cycleId,
       participant_id: participantId,
-      montant: Number(donnees.get("montant")),
+      montant: montantTotal,
+      ...(penalite > 0 ? { penalite_retard: penalite } : {}),
       date_versement: donnees.get("date_versement"),
     });
 
@@ -335,10 +374,15 @@ export async function ecranTontineVerser(conteneur) {
       return;
     }
 
-    const montantDeclare = donnees.get("montant");
+    const montantDeclare = montantTotal;
     evenement.target.reset();
     document.getElementById("champ-participant-tontine").value = participantId;
+    succes.textContent =
+      penalite > 0
+        ? `Versement déclaré (dont ${formaterMontant(penalite)} de pénalité de retard), en attente de validation par un admin.`
+        : "Versement déclaré, en attente de validation par un admin.";
     succes.hidden = false;
+    calculerPenalite();
     notifier(`Un versement de tontine a été déclaré (${montantDeclare} FCFA).`);
   });
-}
+                                               }
