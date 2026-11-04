@@ -2,14 +2,19 @@
 // CEAI — Pénalité de retard de versement (cotisation et tontine)
 //
 // Si un membre verse après la date limite de la session / du cycle,
-// il ajoute une légère pénalité de 1 % du montant de la session
-// (montant indicatif) ou du cycle (montant mensuel).
+// il ajoute une pénalité de 25 % du montant à verser : montant indicatif
+// de la session (ou montant saisi s'il n'y en a pas), ou montant mensuel
+// du cycle.
+//
+// Pour changer le taux, modifiez seulement la ligne TAUX_RETARD_VERSEMENT :
+// tous les textes affichés suivent automatiquement.
 // =========================================================
 import { formaterJour } from "./prets-penalite.js";
 
 export { dateDuJour, formaterJour } from "./prets-penalite.js";
 
-export const TAUX_RETARD_VERSEMENT = 0.01;
+export const TAUX_RETARD_VERSEMENT = 0.25;
+export const LIBELLE_TAUX_RETARD = `${Math.round(TAUX_RETARD_VERSEMENT * 100)} %`;
 
 // Renvoie le montant de la pénalité (0 si pas de retard ou pas de date limite)
 export function penaliteRetardVersement({ dateLimite, dateVersement, montantReference }) {
