@@ -13,7 +13,7 @@
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
-import { penaliteRetardVersement } from "../penalite-retard.js";
+import { penaliteRetardVersement, LIBELLE_TAUX_RETARD } from "../penalite-retard.js";
 import {
   carteOuverture,
   selecteurTheme,
@@ -102,7 +102,6 @@ async function rafraichir(conteneur) {
       `;
       const formulaire = document.getElementById("formulaire-ouverture-cycle");
       activerSelecteurTheme(formulaire);
-
       formulaire.addEventListener("submit", async (evenement) => {
         evenement.preventDefault();
         const donnees = new FormData(evenement.target);
@@ -153,7 +152,7 @@ async function rafraichir(conteneur) {
             `Démarré le ${formaterDate(c.demarre_le)} · ${Number(c.montant_mensuel).toLocaleString("fr-FR")} FCFA/mois`,
             `${participantsCycle.length} participant(s) · ${enAttente.length} versement(s) en attente`,
             tirageFait ? `Tirage au sort effectué le ${formaterDate(c.tirage_effectue_le)}` : "Tirage au sort pas encore effectué",
-            ...(c.date_limite_versement ? [`Clôture des versements prévue le ${formaterJour(c.date_limite_versement)} (pénalité de 1 % après cette date)`] : []),
+            ...(c.date_limite_versement ? [`Clôture des versements prévue le ${formaterJour(c.date_limite_versement)} (pénalité de ${LIBELLE_TAUX_RETARD} après cette date)`] : []),
           ],
           attributs: `data-basculer-corps="${c.id}" role="button" tabindex="0"`,
           classes: "ouverture-cliquable",
@@ -209,7 +208,6 @@ async function rafraichir(conteneur) {
             }
             ${estAdmin ? gabaritAjoutParticipant(c.id, participantsCycle, membres || []) : ""}
           </div>
-
           <div data-liste-versements="${c.id}" hidden style="margin-top:12px; display:flex; flex-direction:column; gap:8px">
             ${
               enAttente.length
@@ -317,7 +315,6 @@ async function rafraichir(conteneur) {
       rafraichir(conteneur);
     });
   });
-
   // --- Ajouter un participant (admin uniquement) ---------------------------
   // Après le tirage, le nouveau participant est placé à la fin de l'ordre.
   listeCycles.querySelectorAll("[data-bouton-ajout-participant]").forEach((bouton) => {
@@ -424,7 +421,6 @@ async function rafraichir(conteneur) {
       rafraichir(conteneur);
     });
   });
-
   // --- Clôturer / Supprimer un cycle (admin uniquement) ---------------------
   listeCycles.querySelectorAll("[data-cloturer]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
@@ -445,7 +441,7 @@ async function rafraichir(conteneur) {
       rafraichir(conteneur);
     });
   });
- 
+
   listeCycles.querySelectorAll("[data-supprimer]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
       if (!window.confirm(`Supprimer définitivement "${bouton.dataset.nom}", ses participants et ses versements ? Cette action est irréversible.`)) return;
@@ -458,7 +454,7 @@ async function rafraichir(conteneur) {
     });
   });
 
-// --- Validation des versements (admin ou comptable) -----------------------
+  // --- Validation des versements (admin ou comptable) -----------------------
   listeCycles.querySelectorAll("[data-valider]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
       await supabase
@@ -473,7 +469,7 @@ async function rafraichir(conteneur) {
       await supabase
         .from("tontine_versements")
         .update({ statut: "rejete", valide_par: moiId, valide_le: new Date().toISOString() })
-      .eq("id", bouton.dataset.rejeter);
+        .eq("id", bouton.dataset.rejeter);
       rafraichir(conteneur);
     });
   });
@@ -488,7 +484,7 @@ function gabaritFormulaireBilan(cycle, participantsCycle, bilan, tirageFait) {
       <p style="margin:0; font-size:12px; color:var(--texte-secondaire)">
         Ce bilan sera visible par tous les membres dans les Archives une fois le cycle clôturé.
       </p>
-
+ 
       <label class="champ">
         <span>Qui a reçu le tour ?</span>
         <select name="beneficiaire_participant_id" required style="background:var(--fond); border:1px solid var(--bordure);
@@ -504,7 +500,7 @@ function gabaritFormulaireBilan(cycle, participantsCycle, bilan, tirageFait) {
       </label>
  
       <label class="champ">
-      <span>Montant reçu (FCFA)</span>
+        <span>Montant reçu (FCFA)</span>
         <input type="number" name="montant_recu" min="0" step="1" value="${montantSuggere}"
                style="width:100%; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
       </label>
@@ -515,7 +511,7 @@ function gabaritFormulaireBilan(cycle, participantsCycle, bilan, tirageFait) {
                   style="width:100%; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical">${echapper(bilan?.notes || "")}</textarea>
       </label>
 
-             <p class="erreur-bilan" style="color:var(--danger); font-size:13px; margin:0" hidden></p>
+       <p class="erreur-bilan" style="color:var(--danger); font-size:13px; margin:0" hidden></p>
  
       <div style="display:flex; gap:8px">
         <button type="submit" class="bouton bouton-or" style="flex:1">Enregistrer le bilan</button>
@@ -528,11 +524,10 @@ function gabaritFormulaireBilan(cycle, participantsCycle, bilan, tirageFait) {
 function gabaritAjoutParticipant(cycleId, participantsCycle, membres) {
   const idsDejaDedans = new Set(participantsCycle.map((p) => p.membre_id));
   const disponibles = membres.filter((m) => !idsDejaDedans.has(m.id));
- 
+
   if (!disponibles.length) return "";
- 
   return `
-  <div style="display:flex; gap:6px; margin-top:8px">
+    <div style="display:flex; gap:6px; margin-top:8px">
       <select class="select-ajout-participant" data-cycle-id="${cycleId}"
               style="flex:1; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit);
               padding:8px; color:var(--texte); font-size:13px">
@@ -545,7 +540,7 @@ function gabaritAjoutParticipant(cycleId, participantsCycle, membres) {
           </div>
   `;
 }
-
+ 
 function gabaritParticipant(p, estAdmin, tirageFait) {
   const nom = p.profils?.nom || "—";
   return `
@@ -571,9 +566,9 @@ function gabaritVersementEnAttente(v, penalite = 0) {
       <div>
         <p style="margin:0; font-weight:500; font-size:14px">${echapper(v.tontine_participants?.profils?.nom || "—")}</p>
                 <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">
-                ${Number(v.montant).toLocaleString("fr-FR")} FCFA · ${new Date(v.date_versement).toLocaleDateString("fr-FR")}
+          ${Number(v.montant).toLocaleString("fr-FR")} FCFA · ${new Date(v.date_versement).toLocaleDateString("fr-FR")}
         </p>
-        ${Number(v.penalite_retard) > 0 ? `<p style="margin:2px 0 0; font-size:12px; color:var(--danger)">Dont pénalité de retard : ${Number(v.penalite_retard).toLocaleString("fr-FR")} FCFA</p>` : penalite > 0 ? `<p style="margin:2px 0 0; font-size:12px; color:var(--danger)">En retard : pénalité de 1 % à ajouter (${penalite.toLocaleString("fr-FR")} FCFA)</p>` : ""}
+        ${Number(v.penalite_retard) > 0 ? `<p style="margin:2px 0 0; font-size:12px; color:var(--danger)">Dont pénalité de retard : ${Number(v.penalite_retard).toLocaleString("fr-FR")} FCFA</p>` : penalite > 0 ? `<p style="margin:2px 0 0; font-size:12px; color:var(--danger)">En retard : pénalité de ${LIBELLE_TAUX_RETARD} à ajouter (${penalite.toLocaleString("fr-FR")} FCFA)</p>` : ""}
       </div>
       <div style="display:flex; gap:6px">
         <button data-valider="${v.id}" class="bouton" style="background:#4C9A6A; color:#fff; padding:6px 10px; font-size:12px">Valider</button>
