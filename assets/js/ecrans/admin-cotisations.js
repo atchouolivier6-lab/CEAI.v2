@@ -12,7 +12,7 @@
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
-import { penaliteRetardVersement } from "../penalite-retard.js";
+import { penaliteRetardVersement, LIBELLE_TAUX_RETARD } from "../penalite-retard.js";
 import {
   carteOuverture,
   selecteurTheme,
@@ -105,7 +105,6 @@ async function rafraichir(conteneur) {
       `;
       const formulaire = document.getElementById("formulaire-ouverture-session");
       activerSelecteurTheme(formulaire);
-
       formulaire.addEventListener("submit", async (evenement) => {
         evenement.preventDefault();
         const donnees = new FormData(evenement.target);
@@ -155,7 +154,7 @@ async function rafraichir(conteneur) {
           details: [
             `Ouverte le ${formaterDate(s.ouverte_le)}${s.montant_indicatif ? " · Indicatif : " + Number(s.montant_indicatif).toLocaleString("fr-FR") + " FCFA" : ""}`,
             `${totalValide.toLocaleString("fr-FR")} FCFA validés · ${adherentsSession.length} adhérent(s) · ${enAttente.length} versement(s) en attente`,
-            ...(s.date_limite_versement ? [`Clôture des versements prévue le ${formaterJour(s.date_limite_versement)} (pénalité de 1 % après cette date)`] : []),
+            ...(s.date_limite_versement ? [`Clôture des versements prévue le ${formaterJour(s.date_limite_versement)} (pénalité de ${LIBELLE_TAUX_RETARD} après cette date)`] : []),
           ],
           attributs: `data-basculer-corps="${s.id}" role="button" tabindex="0"`,
           classes: "ouverture-cliquable",
@@ -207,7 +206,6 @@ async function rafraichir(conteneur) {
                 : `<p style="color:var(--texte-secondaire); font-size:13px">Aucun adhérent pour le moment.</p>`
             }
           </div>
-
           ${
             estAdmin
               ? `<div data-panneau-ajout="${s.id}" ${ajoutsOuverts.has(s.id) ? "" : "hidden"} style="margin-top:12px">
@@ -315,7 +313,6 @@ async function rafraichir(conteneur) {
       zone.hidden = !zone.hidden;
     });
   });
-
   listeSessions.querySelectorAll("[data-ouvrir-bilan]").forEach((bouton) => {
     bouton.addEventListener("click", () => {
       const zone = listeSessions.querySelector(`[data-formulaire-bilan="${bouton.dataset.ouvrirBilan}"]`);
@@ -425,7 +422,6 @@ async function rafraichir(conteneur) {
       rafraichir(conteneur);
     });
   });
-
   listeSessions.querySelectorAll("[data-valider]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
       await supabase
@@ -454,12 +450,12 @@ function gabaritFormulaireBilan(sessionId, nomSession, bilan) {
       <p style="margin:0; font-size:12px; color:var(--texte-secondaire)">
         Ce bilan sera visible par tous les membres dans les Archives une fois la session clôturée. Laissez à 0 ce qui ne s'applique pas.
       </p>
- 
+
       <div>
         <p style="margin:0 0 6px; font-size:13px; font-weight:500">Dépenses effectuées</p>
         <input type="number" name="depenses_montant" min="0" step="1" placeholder="Montant (FCFA)" value="${bilan?.depenses_montant || 0}"
                style="width:100%; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
-               <textarea name="depenses_description" rows="2" placeholder="Détail des dépenses (facultatif)"
+        <textarea name="depenses_description" rows="2" placeholder="Détail des dépenses (facultatif)"
                   style="width:100%; margin-top:6px; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical">${echapper(bilan?.depenses_description || "")}</textarea>
       </div>
  
@@ -467,7 +463,7 @@ function gabaritFormulaireBilan(sessionId, nomSession, bilan) {
         <p style="margin:0 0 6px; font-size:13px; font-weight:500">Remboursements de prêts effectués avec cette cotisation</p>
         <input type="number" name="remboursements_montant" min="0" step="1" placeholder="Montant (FCFA)" value="${bilan?.remboursements_montant || 0}"
                style="width:100%; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-size:13px" />
-               <textarea name="remboursements_description" rows="2" placeholder="Détail (facultatif)"
+                       <textarea name="remboursements_description" rows="2" placeholder="Détail (facultatif)"
                   style="width:100%; margin-top:6px; background:var(--fond); border:1px solid var(--bordure); border-radius:var(--rayon-petit); padding:9px 10px; color:var(--texte); font-family:inherit; font-size:13px; resize:vertical">${echapper(bilan?.remboursements_description || "")}</textarea>
       </div>
  
@@ -497,7 +493,7 @@ function gabaritVersementEnAttente(v, nomParId, penalite = 0) {
         <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">
           ${Number(v.montant).toLocaleString("fr-FR")} FCFA · ${new Date(v.date_versement).toLocaleDateString("fr-FR")}
                   </p>
-                  ${Number(v.penalite_retard) > 0 ? `<p style="margin:2px 0 0; font-size:12px; color:var(--danger)">Dont pénalité de retard : ${Number(v.penalite_retard).toLocaleString("fr-FR")} FCFA</p>` : penalite > 0 ? `<p style="margin:2px 0 0; font-size:12px; color:var(--danger)">En retard : pénalité de 1 % à ajouter (${penalite.toLocaleString("fr-FR")} FCFA)</p>` : ""}
+        ${Number(v.penalite_retard) > 0 ? `<p style="margin:2px 0 0; font-size:12px; color:var(--danger)">Dont pénalité de retard : ${Number(v.penalite_retard).toLocaleString("fr-FR")} FCFA</p>` : penalite > 0 ? `<p style="margin:2px 0 0; font-size:12px; color:var(--danger)">En retard : pénalité de ${LIBELLE_TAUX_RETARD} à ajouter (${penalite.toLocaleString("fr-FR")} FCFA)</p>` : ""}
       </div>
       <div style="display:flex; gap:6px">
         <button data-valider="${v.id}" class="bouton" style="background:#4C9A6A; color:#fff; padding:6px 10px; font-size:12px">Valider</button>
@@ -506,7 +502,7 @@ function gabaritVersementEnAttente(v, nomParId, penalite = 0) {
     </div>
   `;
 }
-
+ 
 // Liste des membres du site qui ne sont pas encore dans la session
 function gabaritAjoutAdherent(sessionId, adherentsSession, membres) {
   const dejaAdherents = new Set(adherentsSession.map((a) => a.membre_id));
@@ -522,7 +518,7 @@ function gabaritAjoutAdherent(sessionId, adherentsSession, membres) {
       .map(
         (m) => `
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:6px 0; border-top:1px solid var(--bordure)">
-      <span style="font-size:13px">${echapper(m.nom)}</span>
+        <span style="font-size:13px">${echapper(m.nom)}</span>
         <button data-ajouter-adherent="${sessionId}" data-membre="${m.id}" data-nom="${echapper(m.nom)}" class="bouton"
                         style="background:var(--fond-carte-claire); color:var(--texte); padding:5px 10px; font-size:12px">Ajouter</button>
       </div>`
@@ -530,4 +526,3 @@ function gabaritAjoutAdherent(sessionId, adherentsSession, membres) {
       .join("")}
   `;
 }
- 
