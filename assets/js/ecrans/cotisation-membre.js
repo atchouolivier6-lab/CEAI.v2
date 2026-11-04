@@ -8,7 +8,7 @@
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
-import { penaliteRetardVersement, texteDateLimite, dateDuJour, formaterJour } from "../penalite-retard.js";
+import { penaliteRetardVersement, texteDateLimite, dateDuJour, formaterJour, LIBELLE_TAUX_RETARD } from "../penalite-retard.js";
 import {
   carteOuverture,
   activerCartesOuverture,
@@ -257,7 +257,7 @@ export async function ecranCotisationVerser(conteneur) {
   const formulaire = document.getElementById("formulaire-versement");
   const avisRetard = document.getElementById("avis-retard");
 
-  // Pénalité de 1 % si la date du versement dépasse la date limite de la session choisie
+  // Pénalité de retard si la date du versement dépasse la date limite de la session choisie
   function calculerPenalite() {
     const session = sessionsAdherees.find((s) => s.id === document.getElementById("champ-session-versement").value);
     const montant = Number(formulaire.elements.montant.value || 0);
@@ -267,7 +267,7 @@ export async function ecranCotisationVerser(conteneur) {
       montantReference: session?.montant_indicatif || montant,
     });
     if (penalite > 0) {
-      avisRetard.innerHTML = `La date limite (${formaterJour(session.date_limite_versement)}) est dépassée : une pénalité de retard de 1 % (${formaterMontant(penalite)}) s'ajoute. Total à verser : <strong>${formaterMontant(montant + penalite)}</strong>.`;
+      avisRetard.innerHTML = `La date limite (${formaterJour(session.date_limite_versement)}) est dépassée : une pénalité de retard de ${LIBELLE_TAUX_RETARD} (${formaterMontant(penalite)}) s'ajoute. Total à verser : <strong>${formaterMontant(montant + penalite)}</strong>.`;
     }
     avisRetard.hidden = penalite === 0;
     return penalite;
@@ -322,4 +322,4 @@ export async function ecranCotisationVerser(conteneur) {
     calculerPenalite();
     notifier(`Un versement de cotisation a été déclaré (${montantDeclare} FCFA).`);
   });
-    }
+}
