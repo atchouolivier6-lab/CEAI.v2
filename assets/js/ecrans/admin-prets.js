@@ -65,7 +65,7 @@ export async function ecranAdminPrets(conteneur) {
 
     const { data: demandes, error } = await supabase
       .from("prets_demandes")
-      .select("id, montant, motif, duree_souhaitee, statut, reponse_admin, cree_le, date_pret, profils!prets_demandes_membre_id_fkey(nom)")
+      .select("id, membre_id, montant, motif, duree_souhaitee, statut, reponse_admin, cree_le, date_pret, profils!prets_demandes_membre_id_fkey(nom)")
       .order("cree_le", { ascending: false });
 
     if (error) {
@@ -105,7 +105,11 @@ export async function ecranAdminPrets(conteneur) {
           })
           .eq("id", demandeId);
 
-        notifier(`Une demande de prêt a été ${statut === "acceptee" ? "acceptée" : "refusée"}.`);
+        const demande = demandes.find((d) => d.id === demandeId);
+        notifier(
+          `La demande de prêt de ${demande?.profils?.nom || "un membre"} (${Number(demande?.montant || 0).toLocaleString("fr-FR")} FCFA) a été ${statut === "acceptee" ? "acceptée" : "refusée"}.`,
+          { prive: true, destinataireId: demande?.membre_id }
+        );
         rendreDemandes();
       });
     });
@@ -325,4 +329,4 @@ export async function ecranAdminPrets(conteneur) {
   }
 
   rendreDemandes();
-      }
+    }
