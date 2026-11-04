@@ -108,7 +108,7 @@ export async function ecranDemandePret(conteneur) {
         return;
       }
 
-      notifier("Une nouvelle demande de prêt a été soumise.");
+      notifier("Une nouvelle demande de prêt a été soumise.", { prive: true, destinataireId: moiId });
       activerOnglet("mesdemandes");
       rendreMesDemandes();
     });
@@ -170,7 +170,7 @@ export async function ecranDemandePret(conteneur) {
           alert("Erreur : " + error.message);
           return;
         }
-        notifier("Un remboursement de prêt a été déclaré.");
+        notifier("Un remboursement de prêt a été déclaré.", { prive: true, destinataireId: moiId });
         rendreMesDemandes();
       });
     });
@@ -252,4 +252,4 @@ export async function ecranDemandePret(conteneur) {
   }
 
   rendreFormulaire();
-    }
+                                      }
