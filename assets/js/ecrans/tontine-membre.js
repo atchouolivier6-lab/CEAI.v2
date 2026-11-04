@@ -9,7 +9,7 @@
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
-import { penaliteRetardVersement, texteDateLimite, dateDuJour, formaterJour } from "../penalite-retard.js";
+import { penaliteRetardVersement, texteDateLimite, dateDuJour, formaterJour, LIBELLE_TAUX_RETARD } from "../penalite-retard.js";
 import {
   carteOuverture,
   activerCartesOuverture,
@@ -317,7 +317,7 @@ export async function ecranTontineVerser(conteneur) {
   const formulaire = document.getElementById("formulaire-versement-tontine");
   const avisRetard = document.getElementById("avis-retard-tontine");
 
-  // Pénalité de 1 % du montant mensuel si la date du versement dépasse la date limite du cycle choisi
+  // Pénalité de retard (sur le montant mensuel) si la date du versement dépasse la date limite du cycle choisi
   function calculerPenalite() {
     const choisi = cyclesAvecParticipation.find(
       (x) => x.participation.id === document.getElementById("champ-participant-tontine").value
@@ -329,7 +329,7 @@ export async function ecranTontineVerser(conteneur) {
       montantReference: choisi?.cycle.montant_mensuel,
     });
     if (penalite > 0) {
-      avisRetard.innerHTML = `La date limite (${formaterJour(choisi.cycle.date_limite_versement)}) est dépassée : une pénalité de retard de 1 % (${formaterMontant(penalite)}) s'ajoute. Total à verser : <strong>${formaterMontant(montant + penalite)}</strong>.`;
+      avisRetard.innerHTML = `La date limite (${formaterJour(choisi.cycle.date_limite_versement)}) est dépassée : une pénalité de retard de ${LIBELLE_TAUX_RETARD} (${formaterMontant(penalite)}) s'ajoute. Total à verser : <strong>${formaterMontant(montant + penalite)}</strong>.`;
     }
     avisRetard.hidden = penalite === 0;
     return penalite;
@@ -385,4 +385,4 @@ export async function ecranTontineVerser(conteneur) {
     calculerPenalite();
     notifier(`Un versement de tontine a été déclaré (${montantDeclare} FCFA).`);
   });
-                                               }
+    }
