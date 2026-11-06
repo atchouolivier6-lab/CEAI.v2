@@ -6,7 +6,7 @@
 //
 // À l'acceptation, la date du prêt déclarée par le membre est reprise
 // comme date d'octroi (modifiable avant d'accepter) : c'est de cette
-// date que part le décompte des pénalités, calculé jour par jour.
+// date que part le décompte de la pénalité, calculé jour par jour.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
@@ -197,7 +197,7 @@ export async function ecranAdminPrets(conteneur) {
         const rembEnAttente = rembDuPret.filter((r) => r.statut === "en_attente");
         const { joursEnRetard, penalite, finGrace } = calculerPenaliteJournaliere(pret.montant, pret.date_octroi);
         const resteDu = Number(pret.montant) + penalite - rembValide;
-        const libelleJours = `${joursEnRetard} jour${joursEnRetard > 1 ? "s" : ""} de retard`;
+        const libelleJours = `${joursEnRetard} jour${joursEnRetard > 1 ? "s" : ""} depuis le prêt`;
 
         return `
         <div class="carte">
@@ -329,4 +329,4 @@ export async function ecranAdminPrets(conteneur) {
   }
 
   rendreDemandes();
-    }
+}
