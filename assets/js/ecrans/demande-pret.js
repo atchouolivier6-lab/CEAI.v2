@@ -1,12 +1,12 @@
 // =========================================================
 // CEAI — Écran "Demande de prêt" (visible par tous les membres)
 // Le membre indique la date du prêt (aujourd'hui ou une date passée) ;
-// la pénalité de retard se calcule jour par jour à partir de cette date.
+// la pénalité se calcule jour par jour à partir de cette date.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
-import { calculerPenaliteJournaliere, dateDuJour, formaterJour } from "../prets-penalite.js";
+import { calculerPenaliteJournaliere, dateDuJour, formaterJour, TAUX_PENALITE_MENSUEL } from "../prets-penalite.js";
 
 function formaterDate(dateIso) {
   return new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
@@ -62,8 +62,8 @@ export async function ecranDemandePret(conteneur) {
           <input type="date" name="date_pret" value="${aujourdhui}" max="${aujourdhui}" required />
         </label>
         <p style="margin:-8px 0 0; font-size:12px; color:var(--texte-secondaire)">
-          Si vous avez déjà reçu ce prêt avant de le déclarer ici, indiquez la vraie date : le décompte des
-          pénalités part de cette date. Le premier mois est sans pénalité.
+          Si vous avez déjà reçu ce prêt avant de le déclarer ici, indiquez la vraie date : le décompte de la
+          pénalité (${Math.round(TAUX_PENALITE_MENSUEL * 100)} % par mois, compté jour par jour) part de cette date.
         </p>
         <label class="champ">
           <span>Motif (facultatif)</span>
@@ -186,7 +186,7 @@ export async function ecranDemandePret(conteneur) {
       : { joursEnRetard: 0, penalite: 0, finGrace: null };
     const { joursEnRetard, penalite, finGrace } = calcul;
     const resteDu = Number(d.montant) + penalite - rembValide;
-    const libelleJours = `${joursEnRetard} jour${joursEnRetard > 1 ? "s" : ""} de retard`;
+    const libelleJours = `${joursEnRetard} jour${joursEnRetard > 1 ? "s" : ""} depuis le prêt`;
 
     return `
       <div class="carte">
@@ -252,4 +252,4 @@ export async function ecranDemandePret(conteneur) {
   }
 
   rendreFormulaire();
-                                      }
+      }
