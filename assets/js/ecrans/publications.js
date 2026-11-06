@@ -7,6 +7,7 @@ import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
 import { echapper } from "./composants-tableau.js";
+import { ouvrirVisionneuse } from "../visionneuse-image.js";
 
 const CLE_CIBLE = "ceai-publication-cible";
 
@@ -170,7 +171,8 @@ function gabaritPublication(pub, medias, reactions, commentaires, moiId) {
         .map((m) =>
           m.type === "video"
             ? `<video src="${echapper(m.url)}" controls style="width:100%; border-radius:var(--rayon-petit); margin-bottom:10px"></video>`
-            : `<img src="${echapper(m.url)}" alt="" style="width:100%; border-radius:var(--rayon-petit); margin-bottom:10px" />`
+            : `<img src="${echapper(m.url)}" alt="Toucher pour agrandir" data-zoom="1" role="button" tabindex="0" title="Toucher pour agrandir"
+                    style="width:100%; border-radius:var(--rayon-petit); margin-bottom:10px; cursor:zoom-in" />`
         )
         .join("")}
 
@@ -209,6 +211,22 @@ function gabaritPublication(pub, medias, reactions, commentaires, moiId) {
 }
 
 function brancherInteractions(conteneur, moiId, jeSuisAdmin) {
+  // Toucher une image : visionneuse plein écran (zoom aux doigts, téléchargement)
+  conteneur.querySelectorAll("img[data-zoom]").forEach((image) => {
+    const ouvrir = () => {
+      const carte = image.closest("[data-publication-id]");
+      const images = [...carte.querySelectorAll("img[data-zoom]")];
+      ouvrirVisionneuse(
+        images.map((i) => i.getAttribute("src")),
+        images.indexOf(image)
+      );
+    };
+    image.addEventListener("click", ouvrir);
+    image.addEventListener("keydown", (evenement) => {
+      if (evenement.key === "Enter") ouvrir();
+    });
+  });
+
   conteneur.querySelectorAll(".bouton-reaction").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
       const publicationId = bouton.dataset.id;
@@ -241,4 +259,4 @@ function brancherInteractions(conteneur, moiId, jeSuisAdmin) {
       rafraichirFil(conteneur, moiId, jeSuisAdmin);
     });
   });
-    }
+}
