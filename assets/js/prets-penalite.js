@@ -1,18 +1,18 @@
 // =========================================================
-// CEAI — Pénalité de retard des prêts (calcul au jour le jour)
+// CEAI — Pénalité des prêts (calcul au jour le jour)
 //
 // Règle :
-//  - le 1er mois qui suit la date du prêt est sans pénalité ;
-//  - ensuite la pénalité de 10 % du montant emprunté, par mois, se compte
-//    jour par jour : un mois = 30 jours, donc chaque jour de retard ajoute
-//    1/30e des 10 % ; au bout de 30 jours, les 10 % du mois sont atteints,
-//    puis le mois suivant démarre de la même façon, et ainsi de suite.
+//  - le décompte démarre dès la date du prêt (aucun mois de grâce) ;
+//  - la pénalité de 10 % du montant emprunté, par mois, se compte jour par
+//    jour : un mois = 30 jours, donc chaque jour écoulé ajoute 1/30e des
+//    10 % ; au bout de 30 jours, les 10 % du premier mois sont atteints,
+//    puis le mois suivant continue de la même façon, et ainsi de suite.
 //
-// Pour changer le taux ou le mois de grâce, modifiez seulement les 3 lignes
-// ci-dessous.
+// Pour changer le taux ou remettre un mois de grâce (MOIS_DE_GRACE = 1),
+// modifiez seulement les 3 lignes ci-dessous.
 // =========================================================
 export const TAUX_PENALITE_MENSUEL = 0.1;
-export const MOIS_DE_GRACE = 1;
+export const MOIS_DE_GRACE = 0;
 export const JOURS_PAR_MOIS = 30;
 
 // "2026-10-15" (ou date ISO complète) -> date locale à minuit
@@ -55,6 +55,7 @@ export function calculerPenaliteJournaliere(montant, dateDebut, dateReference = 
     joursEnRetard,
     moisEnRetard: Math.floor(joursEnRetard / JOURS_PAR_MOIS),
     penalite,
-    finGrace,
+    // Date de fin du mois de grâce (rien à afficher quand il n'y a pas de grâce)
+    finGrace: MOIS_DE_GRACE > 0 ? finGrace : null,
   };
-    }
+}
