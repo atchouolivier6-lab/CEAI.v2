@@ -8,6 +8,10 @@ function formaterDate(dateIso) {
   return new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+function echapper(texte) {
+  return String(texte ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
 export async function ecranAdminNotifications(conteneur) {
   conteneur.innerHTML = `<h2 class="titre-section">Gestion des notifications</h2><hr class="trait-or" /><p class="chargement">Chargement…</p>`;
 
@@ -41,8 +45,8 @@ export async function ecranAdminNotifications(conteneur) {
             (n) => `
         <div class="carte" style="display:flex; justify-content:space-between; gap:10px">
           <div>
-            <p style="margin:0; font-size:14px; white-space:pre-line">${n.texte}</p>
-            <p style="margin:6px 0 0; font-size:11px; color:var(--texte-secondaire)">${n.profils?.nom || "—"} · ${formaterDate(n.cree_le)}</p>
+            <p style="margin:0; font-size:14px; white-space:pre-line">${echapper(n.texte)}</p>
+            <p style="margin:6px 0 0; font-size:11px; color:var(--texte-secondaire)">${echapper(n.profils?.nom || "—")} · ${formaterDate(n.cree_le)}</p>
           </div>
           <button data-supprimer="${n.id}" class="bouton-icone" aria-label="Supprimer" style="color:var(--danger)">✕</button>
         </div>
@@ -67,4 +71,4 @@ export async function ecranAdminNotifications(conteneur) {
       rafraichir();
     });
   }
-                                                                                       }
+}
