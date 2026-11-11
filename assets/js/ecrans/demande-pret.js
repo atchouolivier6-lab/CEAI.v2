@@ -7,6 +7,8 @@ import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
 import { calculerPenaliteJournaliere, dateDuJour, formaterJour, TAUX_PENALITE_MENSUEL } from "../prets-penalite.js";
+import { ouvrirFiche } from "../fiche-archive.js";
+import { notifierEquipe } from "../notifier-equipe.js";
 
 function formaterDate(dateIso) {
   return new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
@@ -109,6 +111,8 @@ export async function ecranDemandePret(conteneur) {
       }
 
       notifier("Une nouvelle demande de prêt a été soumise.", { prive: true, destinataireId: moiId });
+      const { data: moi } = await supabase.from("profils").select("nom").eq("id", moiId).single();
+      notifierEquipe(`${moi?.nom || "Un membre"} a soumis une demande de prêt de ${Number(donnees.get("montant")).toLocaleString("fr-FR")} FCFA.`, moiId);
       activerOnglet("mesdemandes");
       rendreMesDemandes();
     });
@@ -156,6 +160,21 @@ export async function ecranDemandePret(conteneur) {
       });
     });
 
+    zoneOnglet.querySelectorAll("[data-fiche-pret]").forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        const [id, type] = bouton.dataset.fichePret.split("|");
+        ouvrirFiche(conteneur, {
+          type,
+          id,
+          nom: type === "pret-solde" ? "Fiche de remboursement" : "Fiche du prêt",
+          retour: () => {
+            ecranDemandePret(conteneur);
+            document.getElementById("onglet-mesdemandes").click();
+          },
+        });
+      });
+    });
+
     zoneOnglet.querySelectorAll("[data-formulaire-remb]").forEach((formulaire) => {
       formulaire.addEventListener("submit", async (evenement) => {
         evenement.preventDefault();
@@ -171,6 +190,8 @@ export async function ecranDemandePret(conteneur) {
           return;
         }
         notifier("Un remboursement de prêt a été déclaré.", { prive: true, destinataireId: moiId });
+        const { data: moi } = await supabase.from("profils").select("nom").eq("id", moiId).single();
+        notifierEquipe(`${moi?.nom || "Un membre"} a déclaré un remboursement de ${Number(donnees.get("montant")).toLocaleString("fr-FR")} FCFA, à valider.`, moiId);
         rendreMesDemandes();
       });
     });
@@ -204,6 +225,14 @@ export async function ecranDemandePret(conteneur) {
         ${d.motif ? `<p style="margin:4px 0 0; font-size:13px; color:var(--texte-secondaire)">Motif : ${d.motif}</p>` : ""}
         ${d.duree_souhaitee ? `<p style="margin:4px 0 0; font-size:13px; color:var(--texte-secondaire)">Durée souhaitée : ${d.duree_souhaitee}</p>` : ""}
         ${d.reponse_admin ? `<p style="margin:10px 0 0; font-size:13px; padding-top:10px; border-top:1px solid var(--bordure)">Réponse : ${d.reponse_admin}</p>` : ""}
+        ${
+          d.statut === "acceptee"
+            ? `<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; padding-top:10px; border-top:1px solid var(--bordure)">
+                 <button data-fiche-pret="${d.id}|pret-octroi" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:8px 14px; font-size:13px">Fiche du prêt</button>
+                 ${d.solde ? `<button data-fiche-pret="${d.id}|pret-solde" class="bouton" style="background:var(--fond-carte-claire); color:var(--texte); padding:8px 14px; font-size:13px">Fiche de remboursement</button>` : ""}
+               </div>`
+            : ""
+        }
 
         ${
           estActif
@@ -252,4 +281,4 @@ export async function ecranDemandePret(conteneur) {
   }
 
   rendreFormulaire();
-      }
+                                 }
