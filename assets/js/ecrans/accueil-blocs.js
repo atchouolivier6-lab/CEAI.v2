@@ -160,9 +160,8 @@ export function blocActivites(notifications) {
           <span class="acc-notif-badge">${svg(nomIcone, 18)}</span>
           <div class="acc-notif-corps">
             <p class="acc-notif-texte">${echapper(n.texte)}</p>
-            <p class="acc-notif-date">${tempsRelatif(n.cree_le)}</p>
+            <p class="acc-notif-date">${tempsRelatif(n.cree_le)}${recente ? ` <span class="acc-nouveau">Nouveau</span>` : ""}</p>
           </div>
-          ${recente ? `<span class="acc-nouveau">Nouveau</span>` : ""}
         </div>`;
         })
         .join("")
@@ -202,4 +201,4 @@ export function blocPublications(publications) {
       <h3 class="acc-bloc-titre">Dernières publications</h3>
       <div class="acc-publications">${cartes}</div>
     </section>`;
-                                                       }
+                    }
