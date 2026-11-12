@@ -14,27 +14,47 @@ function formaterDate(dateIso) {
   return dateIso ? new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "—";
 }
 
-async function jeSuisAdmin() {
+async function moiEtRole() {
   const moiId = await idProfilCourant();
   const { data } = await supabase.from("profils").select("role").eq("id", moiId).single();
-  return data?.role === "admin";
+  return { moiId, role: data?.role || "" };
+}
+
+// Identifiants des sessions / cycles auxquels j'ai participé
+// sources : [[table, colonne de l'identifiant]...], toutes liées à membre_id
+async function mesParticipations(moiId, sources) {
+  const ids = new Set();
+  await Promise.all(
+    (sources || []).map(async ([table, colonne]) => {
+      const { data, error } = await supabase.from(table).select(colonne).eq("membre_id", moiId);
+      if (!error) (data || []).forEach((ligne) => ids.add(ligne[colonne]));
+    })
+  );
+  return ids;
 }
 
 export async function afficherArchives(conteneur, cfg) {
   const entete = `<h2 class="titre-section">${cfg.titre}</h2><hr class="trait-or" />`;
   conteneur.innerHTML = entete + `<p class="chargement">Chargement…</p>`;
 
-  const [{ data, error }, estAdmin] = await Promise.all([
+  const [{ data, error }, { moiId, role }] = await Promise.all([
     supabase.from(cfg.table).select(`id, nom, ${cfg.debut}, ${cfg.fin}`).eq("statut", cfg.statut).order(cfg.fin, { ascending: false }),
-    jeSuisAdmin(),
+    moiEtRole(),
   ]);
+  const estAdmin = role === "admin";
+  const voitTout = ["admin", "comptable"].includes(role);
 
   if (error) {
     conteneur.innerHTML = entete + `<p style="color:var(--danger)">Impossible de charger les archives pour le moment.</p>`;
     return;
   }
 
-  const elements = data || [];
+  // Un membre ne voit que les sessions / cycles auxquels il a participé ; l'admin et le comptable voient tout
+  let elements = data || [];
+  if (!voitTout) {
+    const miens = await mesParticipations(moiId, cfg.participation);
+    elements = elements.filter((e) => miens.has(e.id));
+  }
   const anneeDe = (e) => (e[cfg.fin] ? String(new Date(e[cfg.fin]).getFullYear()) : "Sans date");
 
   conteneur.innerHTML =
@@ -51,7 +71,7 @@ export async function afficherArchives(conteneur, cfg) {
     const terme = filtre.trim().toLowerCase();
     const visibles = elements.filter((e) => !terme || e.nom.toLowerCase().includes(terme) || anneeDe(e).includes(terme));
     if (!visibles.length) {
-      liste.innerHTML = `<p style="color:var(--texte-secondaire)">${elements.length ? "Aucun résultat." : cfg.vide}</p>`;
+      liste.innerHTML = `<p style="color:var(--texte-secondaire)">${elements.length ? "Aucun résultat." : voitTout ? cfg.vide : cfg.videMembre}</p>`;
       return;
     }
     let anneeCourante = "";
@@ -107,4 +127,4 @@ export async function afficherArchives(conteneur, cfg) {
       afficherArchives(conteneur, cfg);
     }
   });
-}
+      }
