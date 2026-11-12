@@ -1,11 +1,17 @@
 // =========================================================
 // CEAI — Écran "À propos"
-// Deux onglets :
+// Trois onglets :
 //   1. Info complémentaire : les sections de page_a_propos_sections
-//   2. Fondateurs : l'écran des fondateurs (ancienne entrée du menu)
+//   2. FAQ : questions fréquentes (a-propos-faq.js)
+//   3. Fondateurs : l'écran des fondateurs (ancienne entrée du menu)
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { ecranFondateurs } from "./fondateurs.js";
+import { afficherFaq } from "./a-propos-faq.js";
+
+function echapper(texte) {
+  return String(texte ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
 
 async function afficherInfoComplementaire(zone) {
   const { data: sections, error } = await supabase
@@ -24,10 +30,10 @@ async function afficherInfoComplementaire(zone) {
     <details class="carte" style="padding:0" ${i === 0 ? "open" : ""}>
       <summary style="padding:16px 18px; cursor:pointer; font-weight:500; list-style:none; display:flex;
                justify-content:space-between; align-items:center">
-        ${s.titre}
+        ${echapper(s.titre)}
         <span style="color:var(--texte-secondaire); font-size:12px">▾</span>
       </summary>
-      <p style="padding:0 18px 16px; margin:0; color:var(--texte-secondaire); line-height:1.6; white-space:pre-line">${s.contenu}</p>
+      <p style="padding:0 18px 16px; margin:0; color:var(--texte-secondaire); line-height:1.6; white-space:pre-line">${echapper(s.contenu)}</p>
     </details>
   `
     )
@@ -48,6 +54,7 @@ export async function ecranAPropos(conteneur) {
     <hr class="trait-or" />
     <div class="onglets" role="tablist">
       <button class="onglet actif" data-onglet="infos" role="tab" aria-selected="true">Info complémentaire</button>
+      <button class="onglet" data-onglet="faq" role="tab" aria-selected="false">FAQ</button>
       <button class="onglet" data-onglet="fondateurs" role="tab" aria-selected="false">Fondateurs</button>
     </div>
     <div id="zone-a-propos"></div>
@@ -55,7 +62,7 @@ export async function ecranAPropos(conteneur) {
 
   const zone = document.getElementById("zone-a-propos");
   const onglets = conteneur.querySelectorAll(".onglet");
-  const affichages = { infos: afficherInfoComplementaire, fondateurs: afficherFondateurs };
+  const affichages = { infos: afficherInfoComplementaire, faq: afficherFaq, fondateurs: afficherFondateurs };
 
   async function ouvrirOnglet(cle) {
     onglets.forEach((onglet) => {
@@ -72,4 +79,4 @@ export async function ecranAPropos(conteneur) {
   });
 
   await ouvrirOnglet("infos");
-                     }
+                      }
