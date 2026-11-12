@@ -20,17 +20,19 @@ function svg(nom, taille = 16) {
     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${EXTRA[nom]}</svg>`;
 }
 
-// Le premier motif qui correspond au texte de la notification décide de l'icône
+// Le premier motif qui correspond au texte de la notification décide de l'icône et des couleurs
+// [motif, icône, couleur 1, couleur 2]
 const TYPES = [
-  [/cl[oô]tur/i, "cloture"],
-  [/[ée]pargne|retrait/i, "epargne"],
-  [/tontine|cycle|tirage/i, "tontine"],
-  [/cotisation|versement|session|bilan/i, "cotisation"],
-  [/pr[êe]t/i, "pret"],
-  [/publi/i, "publication"],
-  [/message/i, "message"],
-  [/membre|adh[ée]r|rejoint|inscri/i, "membres"],
+  [/cl[oô]tur/i, "cloture", "#3f5366", "#6f8aa3"],
+  [/[ée]pargne|retrait/i, "epargne", "#7d3a21", "#b06a45"],
+  [/tontine|cycle|tirage/i, "tontine", "#4d2680", "#7345b0"],
+  [/cotisation|versement|session|bilan/i, "cotisation", "#0f5a35", "#1f8a58"],
+  [/pr[êe]t/i, "pret", "#0f6b73", "#27b0b8"],
+  [/publi/i, "publication", "#b4472a", "#e8845f"],
+  [/message/i, "message", "#173f78", "#2a68b0"],
+  [/membre|adh[ée]r|rejoint|inscri/i, "membres", "#173f78", "#2a68b0"],
 ];
+const PAR_DEFAUT = [null, "cloche", "#2f3e4e", "#566b80"];
 const UNE_JOURNEE = 24 * 3600 * 1000;
 
 function initiale(nom) {
@@ -144,21 +146,23 @@ export function blocBeneficiaire({ beneficiaires }) {
 }
 
 // ---------------------------------------------------------
-// Activités récentes : liste en frise verticale
+// Activités récentes : les 3 dernières, avec la couleur de leur sujet
 // ---------------------------------------------------------
 export function blocActivites(notifications) {
-  const lignes = notifications.length
-    ? notifications
+  const dernieres = notifications.slice(0, 3);
+  const lignes = dernieres.length
+    ? dernieres
         .map((n, i) => {
-          const type = TYPES.find(([motif]) => motif.test(n.texte || ""));
+          const [, nomIcone, c1, c2] = TYPES.find(([motif]) => motif.test(n.texte || "")) || PAR_DEFAUT;
           const recente = Date.now() - new Date(n.cree_le).getTime() < UNE_JOURNEE;
           return `
-        <div class="acc-chrono-item" style="--i:${i}">
-          <span class="acc-chrono-badge">${svg(type ? type[1] : "cloche", 15)}</span>
-          <div class="acc-chrono-corps">
-            <p class="acc-chrono-texte">${echapper(n.texte)}</p>
-            <p class="acc-chrono-date">${tempsRelatif(n.cree_le)}${recente ? ' <span class="acc-nouveau">Nouveau</span>' : ""}</p>
+        <div class="acc-notif" style="--i:${i}; --c1:${c1}; --c2:${c2}">
+          <span class="acc-notif-badge">${svg(nomIcone, 18)}</span>
+          <div class="acc-notif-corps">
+            <p class="acc-notif-texte">${echapper(n.texte)}</p>
+            <p class="acc-notif-date">${tempsRelatif(n.cree_le)}</p>
           </div>
+          ${recente ? `<span class="acc-nouveau">Nouveau</span>` : ""}
         </div>`;
         })
         .join("")
@@ -167,7 +171,8 @@ export function blocActivites(notifications) {
   return `
     <section class="acc-bloc">
       <h3 class="acc-bloc-titre">Activités récentes</h3>
-      <div class="acc-chrono">${lignes}</div>
+      ${lignes}
+      ${dernieres.length ? `<button type="button" class="acc-voir-tout" data-voir-notifs>Toutes les notifications</button>` : ""}
     </section>`;
 }
 
@@ -197,4 +202,4 @@ export function blocPublications(publications) {
       <h3 class="acc-bloc-titre">Dernières publications</h3>
       <div class="acc-publications">${cartes}</div>
     </section>`;
-  }
+                                                       }
