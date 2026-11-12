@@ -38,16 +38,42 @@ function initiale(nom) {
 }
 
 // ---------------------------------------------------------
-// Tuile de chiffre (cliquable si "aller" est renseigné)
-// compter : nombre à faire "monter" de 0 à sa valeur (facultatif)
+// Bandeau de bienvenue
 // ---------------------------------------------------------
-export function tuile({ libelle, valeur, note = "", icone: nomIcone, aller = "", compter = null, suffixe = "", indice = 0 }) {
-  const attrCompteur = compter != null ? ` data-compter="${Number(compter)}" data-suffixe="${echapper(suffixe)}"` : "";
+export function blocHero({ nom, date }) {
   return `
-    <div class="acc-tuile" style="--i:${indice}" ${aller ? `data-aller="${aller}" role="link" tabindex="0"` : ""}>
+    <section class="acc-hero">
+      <p class="acc-hero-marque">Connaissance Entre Amis Intimes</p>
+      ${nom ? `<p class="acc-hero-salut">Bienvenue</p>` : ""}
+      <h2 class="acc-hero-titre">${nom ? echapper(nom) : "Bienvenue"}</h2>
+      <div class="acc-ornement"><span></span></div>
+      <p class="acc-hero-date">${echapper(date)}</p>
+      <p class="acc-hero-devise">Engagement · Rigueur · Amitié</p>
+    </section>`;
+}
+
+// ---------------------------------------------------------
+// Tuile de chiffre colorée (cliquable si "aller" est renseigné)
+// valeur : texte affiché ; unite : petite unité après la valeur (ex. FCFA)
+// compter : nombre à faire "monter" de 0 à sa valeur (facultatif)
+// couleur : bleu | vert | violet | terre
+// ---------------------------------------------------------
+const COULEURS = {
+  bleu: ["#173f78", "#2a68b0"],
+  vert: ["#0f5a35", "#1f8a58"],
+  violet: ["#4d2680", "#7345b0"],
+  terre: ["#7d3a21", "#b06a45"],
+};
+
+export function tuile({ libelle, valeur, unite = "", note = "", icone: nomIcone, aller = "", compter = null, couleur = "bleu", indice = 0 }) {
+  const [c1, c2] = COULEURS[couleur] || COULEURS.bleu;
+  const attrCompteur = compter != null ? ` data-compter="${Number(compter)}"` : "";
+  return `
+    <div class="acc-tuile acc-tuile-couleur" style="--i:${indice}; --c1:${c1}; --c2:${c2}" ${aller ? `data-aller="${aller}" role="link" tabindex="0"` : ""}>
+      <span class="acc-tuile-filigrane">${svg(nomIcone, 92)}</span>
       <span class="acc-tuile-icone">${svg(nomIcone, 18)}</span>
       <p class="acc-tuile-libelle">${echapper(libelle)}</p>
-      <p class="acc-tuile-valeur"${attrCompteur}>${echapper(valeur)}</p>
+      <p class="acc-tuile-valeur"><span${attrCompteur}>${echapper(valeur)}</span>${unite ? ` <small>${echapper(unite)}</small>` : ""}</p>
       ${note ? `<p class="acc-tuile-note">${echapper(note)}</p>` : ""}
     </div>`;
 }
@@ -171,4 +197,4 @@ export function blocPublications(publications) {
       <h3 class="acc-bloc-titre">Dernières publications</h3>
       <div class="acc-publications">${cartes}</div>
     </section>`;
-    }
+  }
