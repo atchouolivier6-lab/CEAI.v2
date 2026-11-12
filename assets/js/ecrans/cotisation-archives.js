@@ -12,6 +12,11 @@ export function ecranCotisationArchives(conteneur) {
     fin: "cloturee_le",
     titre: "Sessions de cotisation clôturées",
     vide: "Aucune session clôturée pour le moment.",
+    videMembre: "Vous n'avez participé à aucune session clôturée.",
+    participation: [
+      ["cotisation_adhesions", "session_id"],
+      ["cotisation_versements", "session_id"],
+    ],
     libelleDebut: "Ouverte le",
     libelleFin: "Clôturée le",
     article: "la session",
