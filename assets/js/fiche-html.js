@@ -98,6 +98,14 @@ const CSS = `
   .fiche-cellule + .fiche-cellule { border-left:0; }
   .fiche-cellule:nth-child(3) { border-left:1px solid var(--fiche-trait); }
 }
+
+/* Petits écrans : chaque ligne du bilan passe sur deux lignes (rubrique + montant, puis détail) */
+@media (max-width: 520px) {
+  .fiche-bilan table, .fiche-bilan tbody { display:block; }
+  .fiche-bilan tr { display:grid; grid-template-columns:1fr auto; border-left:1px solid var(--fiche-trait); border-right:1px solid var(--fiche-trait); }
+  .fiche-bilan td { width:auto !important; border-left:0 !important; border-right:0 !important; }
+  .fiche-bilan td:nth-child(3) { grid-column:1 / -1; padding-top:0; font-size:11.5px; color:var(--fiche-gris); }
+}
 `;
 
 export function injecterStyleFiche() {
