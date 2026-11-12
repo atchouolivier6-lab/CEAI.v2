@@ -59,7 +59,7 @@ const FAQ = [
     categorie: "Cotisation",
     question: "Où voir ce qui a été fait avec l'argent collecté ?",
     reponse:
-      "Dans « Sessions clôturées » (menu Cotisation). Chaque session clôturée présente son bilan : dépenses effectuées, remboursements de prêts, réalisations. Vous pouvez ouvrir la fiche de clôture et la télécharger en PDF.",
+      "Dans « Sessions clôturées » (menu Cotisation), réservé aux adhérents de la session. Chaque session clôturée présente son bilan : dépenses effectuées, remboursements de prêts, réalisations. Vous pouvez ouvrir la fiche de clôture et la télécharger en PDF.",
   },
   {
     categorie: "Cotisation",
