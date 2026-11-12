@@ -99,7 +99,7 @@ export async function ecranAccueil(conteneur) {
     chargerProchainsBeneficiaires(),
     supabase.from("profils").select("id", { count: "exact", head: true }).eq("actif", true),
     supabase.from("publications").select("id, texte, cree_le").order("cree_le", { ascending: false }).limit(3),
-    supabase.from("notifications").select("texte, cree_le").order("cree_le", { ascending: false }).limit(6),
+    supabase.from("notifications").select("texte, cree_le").order("cree_le", { ascending: false }).limit(3),
     chargerMonEpargne(moiId),
     rappelWhatsapp(moiId),
     chargerRole(moiId),
@@ -194,6 +194,11 @@ export async function ecranAccueil(conteneur) {
     carte.addEventListener("keydown", (evenement) => {
       if (evenement.key === "Enter") memoriser();
     });
+  });
+
+  // Le lien sous les activités ouvre la cloche, qui liste toutes les notifications
+  conteneur.querySelector("[data-voir-notifs]")?.addEventListener("click", () => {
+    document.getElementById("bouton-notifications")?.click();
   });
 
   activerCartesCliquables(conteneur);
