@@ -12,6 +12,8 @@ export function ecranTontineArchives(conteneur) {
     fin: "cloture_le",
     titre: "Cycles de tontine clôturés",
     vide: "Aucun cycle clôturé pour le moment.",
+    videMembre: "Vous n'avez participé à aucun cycle clôturé.",
+    participation: [["tontine_participants", "cycle_id"]],
     libelleDebut: "Démarré le",
     libelleFin: "Clôturé le",
     article: "le cycle",
