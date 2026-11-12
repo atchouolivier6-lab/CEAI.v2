@@ -1,0 +1,123 @@
+/* =========================================================
+   CEAI — Thème classique : tons naturels et neutres
+   Pierre, ivoire et sauge, sans doré. Clair et sombre.
+   À charger EN DERNIER dans index.html : il redéfinit les
+   variables de couleur déjà utilisées par tous les écrans.
+   Pour revenir à l'ancien aspect : retirer sa ligne <link>.
+   ========================================================= */
+
+/* ---------- Sombre : graphite chaud ---------- */
+:root[data-theme="sombre"] {
+  --fond: #151714;
+  --fond-carte: #1e211d;
+  --fond-carte-claire: #282c27;
+  --bordure: #353a33;
+  --texte: #ebe8df;
+  --texte-secondaire: #a3a79d;
+  --or: #b9c6bb;        /* accent : sauge claire (remplace l'or) */
+  --or-texte: #c4d0c6;
+  --accent-1: #4a5a4f;
+  --accent-2: #6f8274;
+  --ombre-douce: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 22px rgba(0, 0, 0, 0.18);
+}
+
+/* ---------- Clair : ivoire ---------- */
+:root:not([data-theme="sombre"]) {
+  --fond: #f4f1ea;
+  --fond-carte: #fcfaf5;
+  --fond-carte-claire: #ebe7dc;
+  --bordure: #d8d2c4;
+  --texte: #22251f;
+  --texte-secondaire: #5f6459;
+  --or: #a8bbab;        /* accent : sauge (remplace l'or) */
+  --or-texte: #46604f;
+  --accent-1: #5d7664;
+  --accent-2: #7f9686;
+  --ombre-douce: 0 1px 2px rgba(40, 36, 24, 0.08), 0 8px 22px rgba(40, 36, 24, 0.07);
+}
+
+:root {
+  --rayon-carte: 14px;
+  --duree-douce: 0.38s;
+}
+
+/* ---------- Finitions classiques ---------- */
+.titre-section {
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.carte {
+  border-radius: var(--rayon-carte);
+  border: 1px solid var(--bordure);
+  box-shadow: var(--ombre-douce);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.carte[role="button"]:active,
+.carte[data-route]:active {
+  transform: scale(0.985);
+}
+
+.bouton {
+  transition: transform 0.15s ease, opacity 0.2s ease, background-color 0.2s ease;
+}
+
+.bouton:active {
+  transform: scale(0.97);
+}
+
+/* Les pastilles d'activité de l'accueil perdent leurs couleurs vives */
+.notif {
+  --c1: var(--accent-1) !important;
+  --c2: var(--accent-2) !important;
+}
+
+:focus-visible {
+  outline: 2px solid var(--or-texte);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--accent-2);
+  color: #fff;
+}
+
+/* ---------- Animations discrètes ---------- */
+@keyframes apparition {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes respiration {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+/* Chaque bloc d'un écran apparaît l'un après l'autre */
+.zone-contenu > * {
+  animation: apparition var(--duree-douce) ease-out backwards;
+}
+.zone-contenu > *:nth-child(2) { animation-delay: 0.04s; }
+.zone-contenu > *:nth-child(3) { animation-delay: 0.08s; }
+.zone-contenu > *:nth-child(4) { animation-delay: 0.12s; }
+.zone-contenu > *:nth-child(5) { animation-delay: 0.16s; }
+.zone-contenu > *:nth-child(6) { animation-delay: 0.2s; }
+.zone-contenu > *:nth-child(7) { animation-delay: 0.24s; }
+.zone-contenu > *:nth-child(n + 8) { animation-delay: 0.28s; }
+
+/* Le texte « Chargement… » respire doucement */
+.zone-contenu > .chargement,
+.chargement {
+  animation: respiration 1.4s ease-in-out infinite;
+}
+
+/* Respect du réglage « réduire les animations » du téléphone */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
