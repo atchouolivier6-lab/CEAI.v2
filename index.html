@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="manifest" href="manifest.json" />
-<meta name="theme-color" content="#12251c" />
+<meta name="theme-color" content="#151714" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="CEAI" />
@@ -34,6 +34,8 @@
 <link rel="stylesheet" href="assets/css/agents.css" />
 <link rel="stylesheet" href="assets/css/installation.css" />
 <link rel="stylesheet" href="assets/css/ameliorations.css" />
+<link rel="stylesheet" href="assets/css/theme-classique.css" />
+<link rel="stylesheet" href="assets/css/accueil-classique.css" />
 </head>
 <body>
 
@@ -43,9 +45,9 @@
      un message simple s'affiche avec un bouton "Réessayer". -->
 <div id="ecran-demarrage" class="ecran-demarrage" role="status" aria-label="Chargement">
   <img src="assets/icons/icon-192.png" alt="CEAI" />
-  <div id="demarrage-probleme" style="display:none;position:absolute;left:16px;right:16px;bottom:24px;padding:14px;border-radius:12px;background:#0b1812;color:#f3efe2;font:14px/1.5 system-ui,sans-serif;text-align:center">
+  <div id="demarrage-probleme" style="display:none;position:absolute;left:16px;right:16px;bottom:24px;padding:14px;border-radius:12px;background:#1e211d;color:#ebe8df;font:14px/1.5 system-ui,sans-serif;text-align:center">
     <p id="demarrage-message" style="margin:0 0 12px;white-space:pre-wrap;word-break:break-word"></p>
-    <button type="button" id="demarrage-reessayer" style="font:inherit;font-weight:600;padding:10px 22px;border:0;border-radius:10px;background:#c9a227;color:#12251c">Réessayer</button>
+    <button type="button" id="demarrage-reessayer" style="font:inherit;font-weight:600;padding:10px 22px;border:0;border-radius:10px;background:#b9c6bb;color:#151714">Réessayer</button>
   </div>
 </div>
 <script>
@@ -124,7 +126,7 @@
     <!-- Inscription -->
     <form id="formulaire-inscription" class="auth-formulaire" hidden>
       <label class="champ">
-        <span>Nom complet</span>
+        <span>Nom et Prénom</span>
         <input type="text" name="nom" required autocomplete="name" />
       </label>
       <label class="champ">
@@ -244,7 +246,7 @@
           <li><button class="menu-item" data-route="membres/profil">Mon profil</button></li>
           <li><button class="menu-item" data-route="membres/messagerie">Messagerie</button></li>
           <li><button class="menu-item" data-route="membres/notes">Mes notes</button></li>
-        r</ul>
+        </ul>
       </li>
 
       <li><button class="menu-item" data-route="a-propos">À propos</button></li>
