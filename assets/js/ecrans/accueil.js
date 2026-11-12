@@ -1,25 +1,17 @@
 // =========================================================
-// CEAI — Écran "Accueil" (version moderne)
-// Cartes de statistiques colorées, prochain bénéficiaire de la
-// tontine, activités récentes animées et dernières publications.
-// Chaque carte renvoie vers l'écran correspondant.
+// CEAI — Écran "Accueil" (style classique, tons neutres)
+// Salut et date, tuiles de chiffres, prochain bénéficiaire de la
+// tontine, activités récentes et dernières publications.
+// Chaque tuile renvoie vers l'écran correspondant.
 //
-// Confidentialité : la carte "Capital cotisation" n'est visible que des
+// Confidentialité : la tuile "Capital cotisation" n'est visible que des
 // adhérents d'une cotisation, et le bloc "Prochain bénéficiaire" que des
 // participants d'une tontine. L'admin et le comptable voient toujours tout.
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
-import {
-  carteStat,
-  grilleStats,
-  activerCartesCliquables,
-  panneauBeneficiaire,
-  chargerProchainsBeneficiaires,
-  echapper,
-  formaterMontant,
-} from "./composants-tableau.js";
-import { panneauNotifications, panneauPublications } from "./notifications-accueil.js";
+import { activerCartesCliquables, chargerProchainsBeneficiaires, echapper, formaterMontant } from "./composants-tableau.js";
+import { tuile, blocBeneficiaire, blocActivites, blocPublications, squeletteAccueil, animerCompteurs } from "./accueil-blocs.js";
 
 // Total de mon épargne (versements validés de mes comptes non retirés)
 async function chargerMonEpargne(moiId) {
@@ -67,13 +59,18 @@ async function rappelWhatsapp(moiId) {
   const { data } = await supabase.from("profils").select("role, whatsapp").eq("id", moiId).maybeSingle();
   if (!data || !["admin", "comptable"].includes(data.role) || data.whatsapp) return "";
   return `
-    <div class="alerte-agent" data-aller="membres/profil" role="link" tabindex="0">
-      <p class="alerte-agent-titre">Numéro WhatsApp à renseigner</p>
-      <p class="alerte-agent-texte">
+    <div class="acc-alerte" data-aller="membres/profil" role="link" tabindex="0">
+      <p class="acc-alerte-titre">Numéro WhatsApp à renseigner</p>
+      <p class="acc-alerte-texte">
         En tant que ${data.role === "admin" ? "administrateur" : "comptable"}, vous êtes un agent d'assistance :
         les membres doivent pouvoir vous joindre sur WhatsApp. Touchez ici pour compléter votre profil.
       </p>
     </div>`;
+}
+
+function dateDuJourLongue() {
+  const texte = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  return texte.charAt(0).toUpperCase() + texte.slice(1);
 }
 
 export async function ecranAccueil(conteneur) {
@@ -81,13 +78,12 @@ export async function ecranAccueil(conteneur) {
   const nom = session?.user?.user_metadata?.nom || "";
 
   const enTete = `
-    <h2 class="titre-section">Accueil</h2>
+    <h2 class="titre-section">Bienvenue${nom ? ", " + echapper(nom) : ""}</h2>
     <hr class="trait-or" />
-    <p class="accueil-salut">Bienvenue${nom ? ", " + echapper(nom) : ""}</p>
-    <p class="accueil-sous-titre">Voici l'essentiel de votre association.</p>
+    <p class="acc-date">${dateDuJourLongue()}</p>
   `;
 
-  conteneur.innerHTML = enTete + `<p class="chargement">Chargement…</p>`;
+  conteneur.innerHTML = enTete + squeletteAccueil();
 
   const moiId = await idProfilCourant();
 
@@ -132,57 +128,54 @@ export async function ecranAccueil(conteneur) {
     ? "Aucun compte ouvert"
     : `${epargne.nombre} compte${epargne.nombre > 1 ? "s" : ""} d'épargne`;
 
-  const carteMembres = carteStat({
-    libelle: "Membres actifs",
-    valeur: String(membresActifs || 0),
-    note: "Dans l'association",
-    icone: "membres",
-    couleur: "bleu",
-    aller: "membres/annuaire",
-  });
-
-  const carteCapital = carteStat({
-    libelle: "Capital cotisation",
-    valeur: formaterMontant(capital?.total),
-    note: "Fonds commun",
-    icone: "cotisation",
-    couleur: "vert",
-    aller: "cotisation/suivi",
-  });
-
-  const carteEpargne = carteStat({
-    libelle: "Mon épargne",
-    valeur: formaterMontant(epargne.total),
-    note: noteEpargne,
-    icone: "epargne",
-    couleur: "or",
-    aller: "epargne/comptes",
-  });
-
-  const carteTontine = carteStat({
-    libelle: "Tontine",
-    valeur: cycles.length ? `${cycles.length} en cours` : "Aucun cycle",
-    note: noteTontine,
-    icone: "tontine",
-    couleur: "violet",
-    aller: "tontine/suivi",
-  });
-
-  const cartes = grilleStats([
-    carteMembres,
-    ...(voirCapital ? [carteCapital] : []),
-    carteEpargne,
-    carteTontine,
-  ]);
+  const tuiles = [
+    {
+      libelle: "Membres actifs",
+      valeur: String(membresActifs || 0),
+      compter: membresActifs || 0,
+      note: "Dans l'association",
+      icone: "membres",
+      aller: "membres/annuaire",
+    },
+    ...(voirCapital
+      ? [
+          {
+            libelle: "Capital cotisation",
+            valeur: formaterMontant(capital?.total),
+            compter: Number(capital?.total || 0),
+            suffixe: " FCFA",
+            note: "Fonds commun",
+            icone: "cotisation",
+            aller: "cotisation/suivi",
+          },
+        ]
+      : []),
+    {
+      libelle: "Mon épargne",
+      valeur: formaterMontant(epargne.total),
+      compter: epargne.total,
+      suffixe: " FCFA",
+      note: noteEpargne,
+      icone: "epargne",
+      aller: "epargne/comptes",
+    },
+    {
+      libelle: "Tontine",
+      valeur: cycles.length ? `${cycles.length} en cours` : "Aucun cycle",
+      note: noteTontine,
+      icone: "tontine",
+      aller: "tontine/suivi",
+    },
+  ];
 
   conteneur.innerHTML = `
     ${enTete}
     ${rappel}
-    ${cartes}
-    <div class="grille-panneaux">
-      ${voirBeneficiaire ? panneauBeneficiaire(tontine) : ""}
-      ${panneauNotifications(notifications || [])}
-      ${panneauPublications(dernieresPublications || [])}
+    <div class="acc-tuiles">${tuiles.map((t, i) => tuile({ ...t, indice: i })).join("")}</div>
+    <div class="acc-panneaux">
+      ${voirBeneficiaire ? blocBeneficiaire(tontine) : ""}
+      ${blocActivites(notifications || [])}
+      ${blocPublications(dernieresPublications || [])}
     </div>
   `;
 
@@ -202,4 +195,5 @@ export async function ecranAccueil(conteneur) {
   });
 
   activerCartesCliquables(conteneur);
-    }
+  animerCompteurs(conteneur);
+                                                }
