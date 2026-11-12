@@ -2,8 +2,9 @@
 // CEAI — Verrou de l'espace Administration
 // - Première fois : l'agent crée un code de 4 à 6 chiffres et le confirme.
 // - Ensuite : le code est demandé à chaque entrée dans l'espace.
-// - L'espace se reverrouille tout seul : en quittant l'espace Administration,
-//   en quittant ou en réduisant l'application.
+// - Une fois ouvert, l'espace reste ouvert pendant qu'on navigue dans l'application.
+// - Il se reverrouille seulement quand on quitte l'application : fermeture,
+//   passage à une autre application ou écran du téléphone éteint.
 // Le code est vérifié par la base (fonctions de admin-verrou.sql).
 // =========================================================
 import { supabase } from "./supabase-client.js";
@@ -11,6 +12,11 @@ import { supabase } from "./supabase-client.js";
 let deverrouille = false;
 let demandeEnCours = null;
 let installe = false;
+let masqueDepuis = null;
+
+// Temps passé hors de l'application avant verrouillage (en millisecondes).
+// 0 = verrouillage dès qu'on quitte l'application ; 30000 = après 30 secondes.
+const DELAI_AVANT_VERROU_MS = 0;
 
 export function verrouillerAdmin() {
   deverrouille = false;
@@ -35,9 +41,12 @@ export function installerVerrouAdmin() {
   // Application réduite ou quittée : on verrouille ; au retour, le code est redemandé
   document.addEventListener("visibilitychange", async () => {
     if (document.hidden) {
-      verrouillerAdmin();
+      masqueDepuis = Date.now();
+      if (DELAI_AVANT_VERROU_MS === 0) verrouillerAdmin();
       return;
     }
+    if (masqueDepuis !== null && Date.now() - masqueDepuis >= DELAI_AVANT_VERROU_MS) verrouillerAdmin();
+    masqueDepuis = null;
     if (location.hash.startsWith("#admin/") && !deverrouille) {
       const ok = await exigerCodeAdmin();
       if (!ok && location.hash.startsWith("#admin/")) {
@@ -276,4 +285,4 @@ function ouvrirVerrou() {
       else vueCreation();
     });
   });
-          }
+      }
