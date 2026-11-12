@@ -29,6 +29,8 @@ import { ecranAdminNotifications } from "./ecrans/admin-notifications.js";
 import { ecranAdminTableauBord, ecranAdminStatistiques } from "./ecrans/admin-stats.js";
 import { ecranAdminPublications } from "./ecrans/admin-publications.js";
 import { ecranMesNotes } from "./ecrans/mes-notes.js";
+import { exigerCodeAdmin, verrouillerAdmin, installerVerrouAdmin } from "./admin-verrou.js";
+
 const zoneContenu = document.getElementById("zone-contenu");
 
 // Table de routage : route -> fonction de rendu
@@ -78,6 +80,19 @@ async function afficher(route) {
     history.replaceState(null, "", "#accueil");
   }
 
+  // Espace Administration : code de sécurité exigé ; il se reverrouille dès qu'on en sort
+  if (route.startsWith("admin/")) {
+    const routeDemandee = route;
+    const autorise = await exigerCodeAdmin();
+    if (!autorise) {
+      if (routeDepuisUrl() !== routeDemandee) return; // déjà parti ailleurs (bouton retour)
+      route = "accueil";
+      history.replaceState(null, "", "#accueil");
+    }
+  } else {
+    verrouillerAdmin();
+  }
+
   try {
     if (estInvitation) await ecranInvitation(zoneContenu, route.split("/").slice(1));
     else await routes[route](zoneContenu);
@@ -105,6 +120,7 @@ let routeurInitialise = false;
 export function initialiserRouteur() {
   if (!routeurInitialise) {
     routeurInitialise = true;
+    installerVerrouAdmin();
 
     window.addEventListener("ceai:naviguer", (evenement) => naviguerVers(evenement.detail));
 
@@ -125,4 +141,4 @@ export function initialiserRouteur() {
 
   if (!window.location.hash) history.replaceState(null, "", "#accueil");
   afficher(routeDepuisUrl());
-  }
+    }
