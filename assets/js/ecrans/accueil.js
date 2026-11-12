@@ -11,7 +11,7 @@
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
 import { activerCartesCliquables, chargerProchainsBeneficiaires, echapper, formaterMontant } from "./composants-tableau.js";
-import { tuile, blocBeneficiaire, blocActivites, blocPublications, squeletteAccueil, animerCompteurs } from "./accueil-blocs.js";
+import { blocHero, tuile, blocBeneficiaire, blocActivites, blocPublications, squeletteAccueil, animerCompteurs } from "./accueil-blocs.js";
 
 // Total de mon épargne (versements validés de mes comptes non retirés)
 async function chargerMonEpargne(moiId) {
@@ -77,11 +77,7 @@ export async function ecranAccueil(conteneur) {
   const { data: session } = await supabase.auth.getUser();
   const nom = session?.user?.user_metadata?.nom || "";
 
-  const enTete = `
-    <h2 class="titre-section">Bienvenue${nom ? ", " + echapper(nom) : ""}</h2>
-    <hr class="trait-or" />
-    <p class="acc-date">${dateDuJourLongue()}</p>
-  `;
+  const enTete = blocHero({ nom, date: dateDuJourLongue() });
 
   conteneur.innerHTML = enTete + squeletteAccueil();
 
@@ -133,6 +129,7 @@ export async function ecranAccueil(conteneur) {
       libelle: "Membres actifs",
       valeur: String(membresActifs || 0),
       compter: membresActifs || 0,
+      couleur: "bleu",
       note: "Dans l'association",
       icone: "membres",
       aller: "membres/annuaire",
@@ -141,9 +138,10 @@ export async function ecranAccueil(conteneur) {
       ? [
           {
             libelle: "Capital cotisation",
-            valeur: formaterMontant(capital?.total),
+            valeur: Number(capital?.total || 0).toLocaleString("fr-FR"),
+            unite: "FCFA",
             compter: Number(capital?.total || 0),
-            suffixe: " FCFA",
+            couleur: "vert",
             note: "Fonds commun",
             icone: "cotisation",
             aller: "cotisation/suivi",
@@ -152,16 +150,20 @@ export async function ecranAccueil(conteneur) {
       : []),
     {
       libelle: "Mon épargne",
-      valeur: formaterMontant(epargne.total),
+      valeur: Number(epargne.total || 0).toLocaleString("fr-FR"),
+      unite: "FCFA",
       compter: epargne.total,
-      suffixe: " FCFA",
+      couleur: "terre",
       note: noteEpargne,
       icone: "epargne",
       aller: "epargne/comptes",
     },
     {
       libelle: "Tontine",
-      valeur: cycles.length ? `${cycles.length} en cours` : "Aucun cycle",
+      valeur: cycles.length ? String(cycles.length) : "Aucun cycle",
+      unite: cycles.length ? "en cours" : "",
+      compter: cycles.length > 1 ? cycles.length : null,
+      couleur: "violet",
       note: noteTontine,
       icone: "tontine",
       aller: "tontine/suivi",
@@ -196,4 +198,4 @@ export async function ecranAccueil(conteneur) {
 
   activerCartesCliquables(conteneur);
   animerCompteurs(conteneur);
-                                                }
+    }
