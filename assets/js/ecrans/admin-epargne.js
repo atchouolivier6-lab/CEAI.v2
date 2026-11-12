@@ -17,6 +17,7 @@ import {
   echapper,
   badgeStatut,
 } from "./epargne-commun.js";
+import { ouvrirFiche } from "../fiche-archive.js";
 
 async function obtenirRole() {
   const moiId = await idProfilCourant();
@@ -141,6 +142,7 @@ async function rafraichir(conteneur) {
         <p style="margin:2px 0 0; font-size:12px; color:var(--texte-secondaire)">
           ${formaterDate(r.traite_le)} · bénéfice ${formaterFCFA(r.part_benefice)} · frais de réseau ${formaterFCFA(r.part_frais)}
         </p>
+        <button data-fiche-retrait="${r.id}" class="bouton" style="margin-top:8px; background:var(--fond-carte-claire); color:var(--texte); padding:6px 12px; font-size:12px">Fiche de retrait</button>
       </div>`;
         })
         .join("")
@@ -189,6 +191,17 @@ async function rafraichir(conteneur) {
     zone.hidden = !zone.hidden;
   });
 
+  conteneur.querySelectorAll("[data-fiche-retrait]").forEach((bouton) => {
+    bouton.addEventListener("click", () => {
+      ouvrirFiche(conteneur, {
+        type: "epargne-retrait",
+        id: bouton.dataset.ficheRetrait,
+        nom: "Fiche de retrait",
+        retour: () => ecranAdminEpargne(conteneur),
+      });
+    });
+  });
+
   async function traiterVersement(id, valider) {
     const { error } = await supabase.rpc("epargne_traiter_versement", { p_versement: id, p_valider: valider });
     if (error) alert(error.message);
@@ -224,4 +237,4 @@ async function rafraichir(conteneur) {
       }
     });
   });
-    }
+}
