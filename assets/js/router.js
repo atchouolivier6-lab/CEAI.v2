@@ -29,7 +29,7 @@ import { ecranAdminNotifications } from "./ecrans/admin-notifications.js";
 import { ecranAdminTableauBord, ecranAdminStatistiques } from "./ecrans/admin-stats.js";
 import { ecranAdminPublications } from "./ecrans/admin-publications.js";
 import { ecranMesNotes } from "./ecrans/mes-notes.js";
-import { exigerCodeAdmin, verrouillerAdmin, installerVerrouAdmin } from "./admin-verrou.js";
+import { exigerCodeAdmin, installerVerrouAdmin } from "./admin-verrou.js";
 
 const zoneContenu = document.getElementById("zone-contenu");
 
@@ -80,7 +80,8 @@ async function afficher(route) {
     history.replaceState(null, "", "#accueil");
   }
 
-  // Espace Administration : code de sécurité exigé ; il se reverrouille dès qu'on en sort
+  // Espace Administration : code de sécurité exigé. Une fois ouvert, il reste ouvert tant qu'on
+  // ne quitte pas l'application (voir admin-verrou.js).
   if (route.startsWith("admin/")) {
     const routeDemandee = route;
     const autorise = await exigerCodeAdmin();
@@ -89,8 +90,6 @@ async function afficher(route) {
       route = "accueil";
       history.replaceState(null, "", "#accueil");
     }
-  } else {
-    verrouillerAdmin();
   }
 
   try {
@@ -141,4 +140,4 @@ export function initialiserRouteur() {
 
   if (!window.location.hash) history.replaceState(null, "", "#accueil");
   afficher(routeDepuisUrl());
-    }
+  }
