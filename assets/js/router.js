@@ -28,7 +28,7 @@ import { ecranAdminPrets } from "./ecrans/admin-prets.js";
 import { ecranAdminNotifications } from "./ecrans/admin-notifications.js";
 import { ecranAdminTableauBord, ecranAdminStatistiques } from "./ecrans/admin-stats.js";
 import { ecranAdminPublications } from "./ecrans/admin-publications.js";
-
+import { ecranMesNotes } from "./ecrans/mes-notes.js";
 const zoneContenu = document.getElementById("zone-contenu");
 
 // Table de routage : route -> fonction de rendu
@@ -50,6 +50,7 @@ const routes = {
   "membres/annuaire": ecranAnnuaire,
   "membres/profil": ecranMonProfil,
   "membres/messagerie": ecranMessagerie,
+  "membres/notes": ecranMesNotes,
   "a-propos": ecranAPropos,
   "admin/tableau-de-bord": ecranAdminTableauBord,
   "admin/membres": ecranAdminMembres,
