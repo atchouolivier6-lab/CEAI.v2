@@ -7,6 +7,7 @@ import { construirePdf } from "./fiche-pdf.js";
 import { genererQr } from "./qr-simple.js";
 import { chargerDonneesCotisation, chargerDonneesTontine } from "./fiche-chargement.js";
 import { chargerDonneesPret, construireFichePretOctroi, construireFichePretSolde } from "./fiche-pret.js";
+import { chargerDonneesRetrait, construireFicheRetrait } from "./fiche-epargne.js";
 
 // type de fiche -> [chargement des données, construction de la fiche]
 const TYPES = {
@@ -14,6 +15,7 @@ const TYPES = {
   tontine: [chargerDonneesTontine, construireFicheTontine],
   "pret-octroi": [chargerDonneesPret, construireFichePretOctroi],
   "pret-solde": [chargerDonneesPret, construireFichePretSolde],
+  "epargne-retrait": [chargerDonneesRetrait, construireFicheRetrait],
 };
 
 const URL_PDF_LIB = "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js";
