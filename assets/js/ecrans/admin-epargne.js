@@ -18,6 +18,7 @@ import {
   badgeStatut,
 } from "./epargne-commun.js";
 import { ouvrirFiche } from "../fiche-archive.js";
+import { confirmer, alerter } from "../dialogues.js";
 
 async function obtenirRole() {
   const moiId = await idProfilCourant();
@@ -204,13 +205,13 @@ async function rafraichir(conteneur) {
 
   async function traiterVersement(id, valider) {
     const { error } = await supabase.rpc("epargne_traiter_versement", { p_versement: id, p_valider: valider });
-    if (error) alert(error.message);
+    if (error) alerter(error.message);
     rafraichir(conteneur);
   }
 
   async function traiterRetrait(id, accepter) {
     const { error } = await supabase.rpc("epargne_traiter_retrait", { p_retrait: id, p_accepter: accepter });
-    if (error) alert(error.message);
+    if (error) alerter(error.message);
     rafraichir(conteneur);
   }
 
@@ -218,23 +219,23 @@ async function rafraichir(conteneur) {
     bouton.addEventListener("click", () => traiterVersement(bouton.dataset.versementValider, true));
   });
   conteneur.querySelectorAll("[data-versement-rejeter]").forEach((bouton) => {
-    bouton.addEventListener("click", () => {
-      if (window.confirm("Rejeter ce versement ?")) traiterVersement(bouton.dataset.versementRejeter, false);
+    bouton.addEventListener("click", async () => {
+      if (await confirmer("Rejeter ce versement ?")) traiterVersement(bouton.dataset.versementRejeter, false);
     });
   });
 
   conteneur.querySelectorAll("[data-retrait-valider]").forEach((bouton) => {
-    bouton.addEventListener("click", () => {
+    bouton.addEventListener("click", async () => {
       const montant = Number(bouton.dataset.montant).toLocaleString("fr-FR");
       const message = `Confirmez-vous avoir remis ${montant} FCFA à ce membre ?\n\nLe compte sera définitivement retiré.`;
-      if (window.confirm(message)) traiterRetrait(bouton.dataset.retraitValider, true);
+      if (await confirmer(message)) traiterRetrait(bouton.dataset.retraitValider, true);
     });
   });
   conteneur.querySelectorAll("[data-retrait-rejeter]").forEach((bouton) => {
-    bouton.addEventListener("click", () => {
-      if (window.confirm("Rejeter cette demande de retrait ? Le compte redeviendra actif.")) {
+    bouton.addEventListener("click", async () => {
+      if (await confirmer("Rejeter cette demande de retrait ? Le compte redeviendra actif.")) {
         traiterRetrait(bouton.dataset.retraitRejeter, false);
       }
     });
   });
-}
+    }
