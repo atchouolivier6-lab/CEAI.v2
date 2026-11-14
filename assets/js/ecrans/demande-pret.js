@@ -9,6 +9,7 @@ import { notifier } from "../notifier.js";
 import { calculerPenaliteJournaliere, dateDuJour, formaterJour, TAUX_PENALITE_MENSUEL } from "../prets-penalite.js";
 import { ouvrirFiche } from "../fiche-archive.js";
 import { notifierEquipe } from "../notifier-equipe.js";
+import { confirmer, alerter } from "../dialogues.js";
 
 function formaterDate(dateIso) {
   return new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
@@ -146,7 +147,7 @@ export async function ecranDemandePret(conteneur) {
 
     zoneOnglet.querySelectorAll("[data-supprimer-demande]").forEach((bouton) => {
       bouton.addEventListener("click", async () => {
-        if (!window.confirm("Supprimer cette demande ?")) return;
+        if (!await confirmer("Supprimer cette demande ?")) return;
         await supabase.from("prets_demandes").delete().eq("id", bouton.dataset.supprimerDemande);
         rendreMesDemandes();
       });
@@ -154,7 +155,7 @@ export async function ecranDemandePret(conteneur) {
 
     zoneOnglet.querySelectorAll("[data-supprimer-remb]").forEach((bouton) => {
       bouton.addEventListener("click", async () => {
-        if (!window.confirm("Supprimer ce remboursement ?")) return;
+        if (!await confirmer("Supprimer ce remboursement ?")) return;
         await supabase.from("prets_remboursements").delete().eq("id", bouton.dataset.supprimerRemb);
         rendreMesDemandes();
       });
@@ -186,7 +187,7 @@ export async function ecranDemandePret(conteneur) {
           date_remboursement: donnees.get("date_remboursement"),
         });
         if (error) {
-          alert("Erreur : " + error.message);
+          alerter("Erreur : " + error.message);
           return;
         }
         notifier("Un remboursement de prêt a été déclaré.", { prive: true, destinataireId: moiId });
@@ -281,4 +282,4 @@ export async function ecranDemandePret(conteneur) {
   }
 
   rendreFormulaire();
-                                 }
+      }
