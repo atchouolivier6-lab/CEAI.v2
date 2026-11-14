@@ -13,6 +13,7 @@ import { idProfilCourant } from "../mon-profil.js";
 import { notifier } from "../notifier.js";
 import { echapper } from "./composants-tableau.js";
 import { gabaritVote, gabaritVoteComptable, evaluerVote } from "./admin-membres-votes.js";
+import { confirmer } from "../dialogues.js";
 
 const ICONE_CORBEILLE =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
@@ -135,7 +136,7 @@ export async function ecranAdminMembres(conteneur) {
     erreur.hidden = true;
 
     const homonyme = (membres || []).find((m) => m.nom.trim().toLowerCase() === nomSaisi.toLowerCase());
-    if (homonyme && !window.confirm(`Un membre nommé "${homonyme.nom}" existe déjà. Créer quand même une nouvelle fiche pour "${nomSaisi}" ?`)) {
+    if (homonyme && !await confirmer(`Un membre nommé "${homonyme.nom}" existe déjà. Créer quand même une nouvelle fiche pour "${nomSaisi}" ?`)) {
       return;
     }
 
@@ -193,7 +194,7 @@ export async function ecranAdminMembres(conteneur) {
         afficherMessage(`${bouton.dataset.nom} ${MESSAGE_WHATSAPP}`, true);
         return;
       }
-      if (!window.confirm(`Proposer ${bouton.dataset.nom} comme comptable ? Les autres admins vont voter.`)) return;
+      if (!await confirmer(`Proposer ${bouton.dataset.nom} comme comptable ? Les autres admins vont voter.`)) return;
 
       const { data: nouveauVote, error } = await supabase
         .from("comptable_votes")
@@ -306,7 +307,7 @@ function rendreListeMembres(membres, moiId, idsAvecVoteComptableEnCours, contene
 
   conteneurListe.querySelectorAll("[data-supprimer-def]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
-      if (!window.confirm(`Supprimer DÉFINITIVEMENT la fiche de ${bouton.dataset.nom} ? Cette action est irréversible. Utile seulement si cette fiche a été créée par erreur.`)) return;
+      if (!await confirmer(`Supprimer DÉFINITIVEMENT la fiche de ${bouton.dataset.nom} ? Cette action est irréversible. Utile seulement si cette fiche a été créée par erreur.`)) return;
 
       const { error, count } = await supabase.from("profils").delete({ count: "exact" }).eq("id", bouton.dataset.supprimerDef);
 
@@ -330,7 +331,7 @@ function rendreListeMembres(membres, moiId, idsAvecVoteComptableEnCours, contene
   conteneurListe.querySelectorAll("[data-basculer-actif]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
       const estActif = bouton.dataset.actif === "true";
-      if (estActif && !window.confirm("Retirer ce membre ? Son historique reste conservé, mais il n'apparaîtra plus dans l'annuaire ni la tontine.")) return;
+      if (estActif && !await confirmer("Retirer ce membre ? Son historique reste conservé, mais il n'apparaîtra plus dans l'annuaire ni la tontine.")) return;
 
       await supabase.from("profils").update({ actif: !estActif }).eq("id", bouton.dataset.basculerActif);
       ecranAdminMembres(conteneurParent);
