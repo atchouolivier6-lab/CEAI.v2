@@ -2,6 +2,7 @@
 // CEAI — Écran admin "Gestion des publications"
 // =========================================================
 import { supabase } from "../supabase-client.js";
+import { confirmer } from "../dialogues.js";
 
 function formaterDate(dateIso) {
   return new Date(dateIso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -69,7 +70,7 @@ async function rafraichir(conteneur) {
 
   liste.querySelectorAll("[data-supprimer-pub]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
-      if (!window.confirm("Supprimer cette publication et tous ses commentaires ?")) return;
+      if (!await confirmer("Supprimer cette publication et tous ses commentaires ?")) return;
       await supabase.from("publications").delete().eq("id", bouton.dataset.supprimerPub);
       rafraichir(conteneur);
     });
@@ -81,4 +82,4 @@ async function rafraichir(conteneur) {
       rafraichir(conteneur);
     });
   });
-}
+    }
