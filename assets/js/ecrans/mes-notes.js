@@ -6,6 +6,7 @@
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { idProfilCourant } from "../mon-profil.js";
+import { confirmer, alerter } from "../dialogues.js";
 
 const DELAI_AUTO = 1200;
 const ENTETE = `<h2 class="titre-section">Mes notes</h2><hr class="trait-or" />`;
@@ -203,7 +204,7 @@ function ouvrirEditeur(conteneur, note) {
   });
 
   conteneur.querySelector("#note-supprimer").addEventListener("click", async () => {
-    if (id && !window.confirm("Supprimer cette note ? Cette action est irréversible.")) return;
+    if (id && !await confirmer("Supprimer cette note ? Cette action est irréversible.")) return;
     supprimee = true;
     clearTimeout(minuteur);
     await chaine;
@@ -211,7 +212,7 @@ function ouvrirEditeur(conteneur, note) {
       const { error } = await supabase.from("notes_perso").delete().eq("id", id);
       if (error) {
         supprimee = false;
-        alert("Erreur : " + error.message);
+        alerter("Erreur : " + error.message);
         return;
       }
     }
@@ -220,4 +221,4 @@ function ouvrirEditeur(conteneur, note) {
   });
 
   if (!id) titre.focus();
-                                                          }
+}
