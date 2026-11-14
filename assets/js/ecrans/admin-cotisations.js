@@ -20,6 +20,7 @@ import {
   lireTheme,
   echapper,
 } from "./composants-tableau.js";
+import { confirmer, alerter } from "../dialogues.js";
 
 // Sessions dont le corps est déplié (mémorisé pendant les rafraîchissements)
 const sessionsDepliees = new Set();
@@ -286,7 +287,7 @@ async function rafraichir(conteneur) {
   listeSessions.querySelectorAll("[data-ajouter-adherent]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
       const sessionId = bouton.dataset.ajouterAdherent;
-      if (!window.confirm(`Ajouter ${bouton.dataset.nom} à cette session ?`)) return;
+      if (!await confirmer(`Ajouter ${bouton.dataset.nom} à cette session ?`)) return;
 
       bouton.disabled = true;
       const { error } = await supabase.from("cotisation_adhesions").insert({
@@ -296,7 +297,7 @@ async function rafraichir(conteneur) {
 
       if (error) {
         bouton.disabled = false;
-        alert("L'ajout a échoué : " + error.message);
+        alerter("L'ajout a échoué : " + error.message);
         return;
       }
 
@@ -393,7 +394,7 @@ async function rafraichir(conteneur) {
 
   listeSessions.querySelectorAll("[data-cloturer]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
-      if (!window.confirm(`Clôturer "${bouton.dataset.nom}" ? Cette action est définitive.`)) return;
+      if (!await confirmer(`Clôturer "${bouton.dataset.nom}" ? Cette action est définitive.`)) return;
 
       const { data: sessionCloturee, error: erreurCloture } = await supabase
         .from("cotisation_sessions")
@@ -402,7 +403,7 @@ async function rafraichir(conteneur) {
         .select();
 
       if (erreurCloture || !sessionCloturee || !sessionCloturee.length) {
-        alert("La clôture a échoué : " + (erreurCloture?.message || "aucune ligne modifiée (droits insuffisants ?)"));
+        alerter("La clôture a échoué : " + (erreurCloture?.message || "aucune ligne modifiée (droits insuffisants ?)"));
         return;
       }
 
@@ -413,10 +414,10 @@ async function rafraichir(conteneur) {
 
   listeSessions.querySelectorAll("[data-supprimer]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
-      if (!window.confirm(`Supprimer définitivement "${bouton.dataset.nom}" et tous ses versements ? Cette action est irréversible.`)) return;
+      if (!await confirmer(`Supprimer définitivement "${bouton.dataset.nom}" et tous ses versements ? Cette action est irréversible.`)) return;
       const { error } = await supabase.from("cotisation_sessions").delete().eq("id", bouton.dataset.supprimer);
       if (error) {
-        alert("Erreur : " + error.message);
+        alerter("Erreur : " + error.message);
         return;
       }
       rafraichir(conteneur);
