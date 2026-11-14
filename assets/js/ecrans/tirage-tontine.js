@@ -10,6 +10,7 @@
 // =========================================================
 import { supabase } from "../supabase-client.js";
 import { echapper } from "./composants-tableau.js";
+import { alerter } from "../dialogues.js";
 
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const mouvementReduit = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -34,7 +35,7 @@ function fermerVoile(voile) {
 // apresTirage : fonction appelée à la fermeture pour rafraîchir l'écran
 export function lancerTirage({ cycleId, nomCycle, nombreParticipants, apresTirage }) {
   if (nombreParticipants < 2) {
-    alert("Il faut au moins 2 participants pour effectuer le tirage au sort.");
+    alerter("Il faut au moins 2 participants pour effectuer le tirage au sort.");
     return;
   }
 
@@ -160,4 +161,4 @@ async function animerTirage(voile, lignes, apresTirage) {
     fermerVoile(voile);
     apresTirage?.();
   });
-}
+        }
