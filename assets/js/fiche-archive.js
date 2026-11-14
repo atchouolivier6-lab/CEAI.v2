@@ -8,6 +8,7 @@ import { genererQr } from "./qr-simple.js";
 import { chargerDonneesCotisation, chargerDonneesTontine } from "./fiche-chargement.js";
 import { chargerDonneesPret, construireFichePretOctroi, construireFichePretSolde } from "./fiche-pret.js";
 import { chargerDonneesRetrait, construireFicheRetrait } from "./fiche-epargne.js";
+import { alerter } from "./dialogues.js";
 
 // type de fiche -> [chargement des données, construction de la fiche]
 const TYPES = {
@@ -98,7 +99,7 @@ async function avecAttente(bouton, action) {
   try {
     await action();
   } catch (erreur) {
-    alert("Impossible de produire le fichier : " + (erreur.message || erreur));
+    alerter("Impossible de produire le fichier : " + (erreur.message || erreur));
   }
   bouton.disabled = false;
   bouton.textContent = texteInitial;
