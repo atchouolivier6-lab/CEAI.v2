@@ -22,6 +22,7 @@ import {
   echapper,
 } from "./composants-tableau.js";
 import { lancerTirage } from "./tirage-tontine.js";
+import { confirmer, alerter } from "../dialogues.js";
 
 // Cycles dont le corps est déplié (mémorisé pendant les rafraîchissements)
 const cyclesDeplies = new Set();
@@ -336,7 +337,7 @@ async function rafraichir(conteneur) {
       });
 
       if (error) {
-        alert("Erreur : " + error.message);
+        alerter("Erreur : " + error.message);
         return;
       }
       cyclesDeplies.add(cycleId);
@@ -347,10 +348,10 @@ async function rafraichir(conteneur) {
   // --- Retirer un participant (admin uniquement) ----------------------------
   listeCycles.querySelectorAll("[data-retirer-participant]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
-      if (!window.confirm(`Retirer ${bouton.dataset.nom} de ce cycle ?`)) return;
+      if (!await confirmer(`Retirer ${bouton.dataset.nom} de ce cycle ?`)) return;
       const { error } = await supabase.from("tontine_participants").delete().eq("id", bouton.dataset.retirerParticipant);
       if (error) {
-        alert("Impossible de retirer ce participant : " + error.message + " (il a probablement déjà des versements enregistrés)");
+        alerter("Impossible de retirer ce participant : " + error.message + " (il a probablement déjà des versements enregistrés)");
         return;
       }
       rafraichir(conteneur);
@@ -424,7 +425,7 @@ async function rafraichir(conteneur) {
   // --- Clôturer / Supprimer un cycle (admin uniquement) ---------------------
   listeCycles.querySelectorAll("[data-cloturer]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
-      if (!window.confirm(`Clôturer "${bouton.dataset.nom}" ? Cette action est définitive.`)) return;
+      if (!await confirmer(`Clôturer "${bouton.dataset.nom}" ? Cette action est définitive.`)) return;
 
       const { data: cycleCloture, error: erreurCloture } = await supabase
         .from("tontine_cycles")
@@ -433,7 +434,7 @@ async function rafraichir(conteneur) {
         .select();
 
       if (erreurCloture || !cycleCloture || !cycleCloture.length) {
-        alert("La clôture a échoué : " + (erreurCloture?.message || "aucune ligne modifiée (droits insuffisants ?)"));
+        alerter("La clôture a échoué : " + (erreurCloture?.message || "aucune ligne modifiée (droits insuffisants ?)"));
         return;
       }
 
@@ -444,10 +445,10 @@ async function rafraichir(conteneur) {
 
   listeCycles.querySelectorAll("[data-supprimer]").forEach((bouton) => {
     bouton.addEventListener("click", async () => {
-      if (!window.confirm(`Supprimer définitivement "${bouton.dataset.nom}", ses participants et ses versements ? Cette action est irréversible.`)) return;
+      if (!await confirmer(`Supprimer définitivement "${bouton.dataset.nom}", ses participants et ses versements ? Cette action est irréversible.`)) return;
       const { error } = await supabase.from("tontine_cycles").delete().eq("id", bouton.dataset.supprimer);
       if (error) {
-        alert("Erreur : " + error.message);
+        alerter("Erreur : " + error.message);
         return;
       }
       rafraichir(conteneur);
