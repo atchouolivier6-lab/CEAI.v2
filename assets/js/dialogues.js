@@ -98,11 +98,18 @@ function afficher({ titre, message, boutons, annulation, focus }) {
   });
 }
 
+// Libellé du bouton selon le premier mot du message (« Clôturer "X" ? » -> « Clôturer »)
+function libelleParDefaut(texte) {
+  const mot = texte.trim().split(/\s+/)[0].toLowerCase().replace(/[^a-zà-ÿ]/g, "");
+  const table = { supprimer: "Supprimer", rejeter: "Rejeter", clôturer: "Clôturer", retirer: "Retirer", proposer: "Proposer" };
+  return table[mot] || "Confirmer";
+}
+
 // Renvoie true si la personne confirme, false sinon
 export function confirmer(message, options = {}) {
   const texte = String(message ?? "");
   const suppression = /supprim/i.test(texte);
-  const danger = options.danger ?? /supprim|irr[ée]versible|rejet|d[ée]finitivement/i.test(texte);
+  const danger = options.danger ?? /supprim|irr[ée]versible|rejet|d[ée]finitiv/i.test(texte);
   return afficher({
     titre: options.titre || "Confirmation",
     message: texte,
@@ -111,7 +118,7 @@ export function confirmer(message, options = {}) {
     focus: danger ? 0 : 1,
     boutons: [
       { libelle: options.annuler || "Annuler", valeur: false },
-      { libelle: options.ok || (suppression ? "Supprimer" : /rejet/i.test(texte) ? "Rejeter" : "Confirmer"), valeur: true, classe: danger ? "danger" : "principal" },
+      { libelle: options.ok || (suppression ? "Supprimer" : libelleParDefaut(texte)), valeur: true, classe: danger ? "danger" : "principal" },
     ],
   });
 }
@@ -125,4 +132,4 @@ export function alerter(message, options = {}) {
     focus: 0,
     boutons: [{ libelle: options.ok || "OK", valeur: undefined, classe: "principal" }],
   });
-}
+        }
