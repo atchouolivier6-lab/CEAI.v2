@@ -5,6 +5,7 @@
 import { supabase } from "./supabase-client.js";
 import { idProfilCourant } from "./mon-profil.js";
 import { ouvrirFiche, preparerFiche, telechargerPdf, avecAttente } from "./fiche-archive.js";
+import { confirmer, alerter } from "./dialogues.js";
 
 function echapper(texte) {
   return String(texte ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -118,13 +119,13 @@ export async function afficherArchives(conteneur, cfg) {
       await avecAttente(bouton, async () => telechargerPdf(await preparerFiche(cfg.type, bouton.dataset.pdf)));
     } else if (bouton.dataset.supprimer) {
       const e = trouve(bouton.dataset.supprimer);
-      if (!window.confirm(`Supprimer définitivement ${cfg.article} "${e.nom}" des archives ? Cette action est irréversible.`)) return;
+      if (!await confirmer(`Supprimer définitivement ${cfg.article} "${e.nom}" des archives ? Cette action est irréversible.`)) return;
       const { error: erreurSuppression } = await supabase.from(cfg.table).delete().eq("id", e.id);
       if (erreurSuppression) {
-        alert("Erreur : " + erreurSuppression.message);
+        alerter("Erreur : " + erreurSuppression.message);
         return;
       }
       afficherArchives(conteneur, cfg);
     }
   });
-      }
+    }
